@@ -151,3 +151,87 @@ typed-data signing from the wallet and pass the structured object, not serialize
 
 The signature verifies when a dynamic `string` or `bytes` value is encoded directly. EIP-712
 requires the Keccak-256 hash of dynamic values in the struct encoding.
+
+## PERMIT_NONCE_MISMATCH
+
+The nonce signed in an ERC-2612 permit differs from `nonces(owner)` at the observed block.
+Read the current nonce immediately before requesting a replacement signature.
+
+## PERMIT_EXPIRED
+
+The ERC-2612 deadline is earlier than the observed block timestamp. Request a new signature
+with a deadline expressed as a future Unix timestamp in seconds.
+
+## DEADLINE_LOOKS_LIKE_MILLISECONDS
+
+The deadline resembles a JavaScript millisecond timestamp. Use
+`Math.floor(Date.now() / 1000)` before adding the validity window.
+
+## PERMIT_OWNER_ZERO
+
+The ERC-2612 permit names the zero address as owner, which the standard forbids. Sign for the
+actual token owner.
+
+## PERMIT_CALL_REVERTED
+
+A read-only simulation of the ERC-2612 `permit` call reverted or was unavailable. Resolve the
+state and signature findings, or use an RPC that supports the requested historical block.
+
+## PERMIT_CALL_SUCCEEDED
+
+The read-only ERC-2612 `permit` call completed successfully at the observed state.
+
+## PERMIT2_NONCE_USED
+
+The bit for a Permit2 unordered nonce is already set in `nonceBitmap`. Choose an unused nonce
+and request a new signature.
+
+## PERMIT2_NONCE_MISMATCH
+
+The ordered Permit2 allowance nonce differs from the signed nonce. Read
+`allowance(owner, token, spender)` and sign its current nonce.
+
+## PERMIT2_SIGNATURE_EXPIRED
+
+The Permit2 signature deadline is earlier than the observed block timestamp. Request a new
+signature with a future deadline.
+
+## PERMIT2_ALLOWANCE_EXPIRED
+
+The Permit2 allowance expiration is earlier than the observed block timestamp. Sign a permit
+with a future allowance expiration.
+
+## PERMIT2_CALL_REVERTED
+
+A read-only Permit2 verification call reverted or was unavailable. Resolve the accompanying
+state findings or use an RPC with the required historical state.
+
+## PERMIT2_CALL_SUCCEEDED
+
+The read-only Permit2 verification call completed successfully at the observed state.
+
+## ERC6492_WRAPPER_DETECTED
+
+The signature ends with the ERC-6492 detection suffix and wraps a counterfactual contract
+signature. Validate the wrapper before attempting ERC-1271 or ECDSA recovery.
+
+## ERC6492_SIGNATURE_VALID
+
+An ERC-6492-compatible validator accepted the counterfactual signature in a bounded read-only
+call.
+
+## ERC6492_SIGNATURE_INVALID
+
+An ERC-6492-compatible validator completed and rejected the counterfactual signature. Check the
+factory data, signer address, inner signature, and wallet authorization state.
+
+## ERC6492_VALIDATION_FAILED
+
+ERC-6492 validation could not complete because the wrapper, RPC response, gas limit, or
+historical state was unusable. This is inconclusive, not proof of an invalid signature.
+
+## PROTOCOL_STATE_UNAVAILABLE
+
+A required nonce, allowance, bitmap, block, or historical-state read failed. The report remains
+inconclusive until an RPC endpoint can provide that state; the failure text is retained as
+evidence.

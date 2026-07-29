@@ -6,6 +6,12 @@ expression: render_markdown(&valid)
 
 **Verdict:** PASS `MATCH`
 
+## Input and chain context
+
+| Value | Observation |
+|---|---|
+| Input | `TypedData` |
+
 ## Signer
 
 | Value | Address |
@@ -27,4 +33,4 @@ No diagnostic findings.
 | `domainSeparator` | `0xf2cee375fa42b42143804025fc449deafd50cc031ca257e0b194a650a912090f` |
 | `digest` | `0xbe609aee343fb3c4b28e1df9e632fca64fcfaede20f02e86244efddf30957bd2` |
 
-_Report schema v1 - generated locally by why712_
+_Report schema v2 - generated locally by why712_

@@ -3,7 +3,7 @@ source: crates/why712-core/tests/integration_test.rs
 expression: "serde_json::to_string_pretty(&report)?"
 ---
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "verdict": "MISMATCH",
   "computed": {
     "encodeType": "Note(string text,bytes data)",
@@ -33,5 +33,8 @@ expression: "serde_json::to_string_pretty(&report)?"
       "actual": "0xf72D7C6096e22b64E05D8F7229a08bccE202cdC8",
       "remediation": "Resolve the more specific digest findings before changing the signer."
     }
-  ]
+  ],
+  "context": {
+    "inputSource": "TYPED_DATA"
+  }
 }

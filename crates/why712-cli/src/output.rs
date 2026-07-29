@@ -20,6 +20,15 @@ pub(crate) fn render_report_text(report: &Report, no_color: bool) -> Result<()> 
         Verdict::Inconclusive => "INCONCLUSIVE".yellow().bold().to_string(),
     };
     writeln!(output, "Verdict: {verdict}")?;
+    if let Some(context) = &report.context {
+        writeln!(output, "Input source:     {:?}", context.input_source)?;
+        if let Some(standard) = context.detected_standard {
+            writeln!(output, "Detected standard: {standard:?}")?;
+        }
+        if let Some(block) = context.block_number {
+            writeln!(output, "State block:      {block}")?;
+        }
+    }
     if let Some(expected) = report.expected_signer {
         writeln!(output, "Expected signer:  {expected}")?;
     }

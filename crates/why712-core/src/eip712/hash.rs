@@ -133,7 +133,9 @@ impl TypedDataDocument {
         })
     }
 
-    pub(crate) const fn raw(&self) -> &Value {
+    /// Returns the validated source tree for protocol recognition and evidence extraction.
+    #[must_use]
+    pub const fn raw(&self) -> &Value {
         &self.raw
     }
 

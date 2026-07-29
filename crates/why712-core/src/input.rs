@@ -2,7 +2,7 @@
 
 use alloy_primitives::Address;
 
-use crate::{HypothesisContext, OnchainSnapshot};
+use crate::{HypothesisContext, InputSource, OnchainSnapshot};
 
 /// Inputs for the pure offline diagnosis path.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -19,4 +19,6 @@ pub struct DiagnoseRequest {
     pub onchain_snapshot: Option<OnchainSnapshot>,
     /// RPC acquisition failure retained when diagnosis deliberately falls back offline.
     pub onchain_failure: Option<String>,
+    /// Origin of the normalized typed data.
+    pub input_source: InputSource,
 }

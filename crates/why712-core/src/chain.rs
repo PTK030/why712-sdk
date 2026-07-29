@@ -1,10 +1,12 @@
 //! Transport-neutral chain snapshot acquisition.
 
-use alloy_primitives::{Address, Bytes, U256};
+use alloy_primitives::{Address, Bytes, U256, keccak256};
 use serde::Serialize;
 
 use crate::{
-    DomainSeparator, Erc1271Input, Erc1271Probe, Error, OnchainDomain, Result,
+    DomainSeparator, Eip2612Snapshot, Erc1271Input, Erc1271Probe, Erc6492Probe, Error,
+    OnchainDomain, ParsedSignature, Permit2AllowanceItemSnapshot, Permit2AllowanceSnapshot,
+    Permit2SignatureTransferSnapshot, ProtocolRequest, ProtocolSnapshot, Result, SimulationResult,
     eip712::domain::{decode_domain_separator, domain_separator_calldata},
     erc1271::{decode_is_valid_signature, encode_is_valid_signature},
 };
@@ -15,11 +17,37 @@ pub trait ChainClient {
     /// Executes `eth_call` at the latest block.
     async fn eth_call(&self, to: Address, data: Bytes) -> Result<Bytes>;
 
+    /// Executes `eth_call` at an explicit block number when supplied.
+    async fn eth_call_at(&self, to: Address, data: Bytes, _block: Option<u64>) -> Result<Bytes> {
+        self.eth_call(to, data).await
+    }
+
+    /// Executes `eth_call` with an explicit gas ceiling.
+    async fn eth_call_limited(&self, to: Address, data: Bytes, _gas: u64) -> Result<Bytes> {
+        self.eth_call(to, data).await
+    }
+
     /// Reads `eth_chainId`.
     async fn eth_chain_id(&self) -> Result<U256>;
 
     /// Reads runtime bytecode with `eth_getCode` at the latest block.
     async fn eth_get_code(&self, address: Address) -> Result<Bytes>;
+
+    /// Reads the latest block number.
+    async fn eth_block_number(&self) -> Result<u64> {
+        Err(Error::Rpc {
+            method: "eth_blockNumber",
+            reason: "transport does not implement block lookup".to_owned(),
+        })
+    }
+
+    /// Reads the timestamp for a block number.
+    async fn eth_block_timestamp(&self, _block_number: u64) -> Result<u64> {
+        Err(Error::Rpc {
+            method: "eth_getBlockByNumber",
+            reason: "transport does not implement block lookup".to_owned(),
+        })
+    }
 }
 
 /// A failed optional probe retained as evidence instead of aborting diagnosis.
@@ -69,10 +97,22 @@ pub struct OnchainSnapshot {
     /// ERC-1271 result when the expected signer is a contract and signature input was supplied.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub erc1271: Option<Erc1271Probe>,
+    /// ERC-6492 result when a counterfactual wrapper was supplied.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub erc6492: Option<Erc6492Probe>,
     /// Structured or opaque on-chain domain evidence.
     pub domain: DomainProbe,
     /// Optional probe failures, in attempted order.
     pub failures: Vec<ProbeFailure>,
+    /// Block number used for stateful protocol reads.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub block_number: Option<u64>,
+    /// Timestamp of the block used for deadline comparisons.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub block_timestamp: Option<u64>,
+    /// Optional protocol-specific state captured at the same block.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub protocol: Option<ProtocolSnapshot>,
 }
 
 impl OnchainSnapshot {
@@ -131,15 +171,214 @@ pub async fn acquire_onchain_snapshot<C: ChainClient>(
         _ => None,
     };
 
+    let (block_number, block_timestamp) = match client.eth_block_number().await {
+        Ok(number) => match client.eth_block_timestamp(number).await {
+            Ok(timestamp) => (Some(number), Some(timestamp)),
+            Err(error) => {
+                failures.push(probe_failure("eth_getBlockByNumber", &error));
+                (Some(number), None)
+            }
+        },
+        Err(error) => {
+            failures.push(probe_failure("eth_blockNumber", &error));
+            (None, None)
+        }
+    };
+
     Ok(OnchainSnapshot {
         chain_id,
         contract,
         contract_code,
         signer_code,
         erc1271,
+        erc6492: None,
         domain,
         failures,
+        block_number,
+        block_timestamp,
+        protocol: None,
     })
+}
+
+/// Acquires state for one strictly recognized signature protocol.
+#[allow(clippy::too_many_lines)] // Keeping the protocol fan-out together makes every RPC branch auditable.
+pub async fn acquire_protocol_snapshot<C: ChainClient>(
+    client: &C,
+    contract: Address,
+    request: ProtocolRequest,
+    signature: Option<&str>,
+    block_number: Option<u64>,
+    block_timestamp: Option<u64>,
+) -> ProtocolSnapshot {
+    match request {
+        ProtocolRequest::Eip2612 {
+            owner,
+            spender,
+            value,
+            nonce,
+            deadline,
+        } => {
+            let nonce_result = read_single_u256(
+                client,
+                contract,
+                static_call("nonces(address)", &[address_word(owner)]),
+                block_number,
+            )
+            .await;
+            let simulation = signature.map(|encoded| {
+                ParsedSignature::parse_hex(encoded).and_then(|parsed| {
+                    let parity =
+                        parsed
+                            .recovery()
+                            .parity()
+                            .ok_or_else(|| Error::TypedDataShape {
+                                reason: "permit simulation requires a valid recovery byte"
+                                    .to_owned(),
+                            })?;
+                    let words = [
+                        address_word(owner),
+                        address_word(spender),
+                        value.to_be_bytes(),
+                        deadline.to_be_bytes(),
+                        U256::from(if parity { 28 } else { 27 }).to_be_bytes(),
+                        parsed.r().to_be_bytes(),
+                        parsed.s().to_be_bytes(),
+                    ];
+                    Ok(static_call(
+                        "permit(address,address,uint256,uint256,uint8,bytes32,bytes32)",
+                        &words,
+                    ))
+                })
+            });
+            let simulation = match simulation {
+                Some(Ok(calldata)) => Some(
+                    match client.eth_call_at(contract, calldata, block_number).await {
+                        Ok(_) => SimulationResult::Succeeded,
+                        Err(error) => SimulationResult::Reverted {
+                            reason: error.to_string(),
+                        },
+                    },
+                ),
+                Some(Err(error)) => Some(SimulationResult::Unavailable {
+                    reason: error.to_string(),
+                }),
+                None => None,
+            };
+            ProtocolSnapshot::Eip2612(Eip2612Snapshot {
+                owner,
+                signed_nonce: nonce,
+                onchain_nonce: nonce_result.as_ref().ok().copied(),
+                state_failure: nonce_result.err().map(|error| error.to_string()),
+                deadline,
+                block_timestamp,
+                simulation,
+            })
+        }
+        ProtocolRequest::Permit2Allowance {
+            owner,
+            spender,
+            details,
+            signature_deadline,
+        } => {
+            let mut allowances = Vec::with_capacity(details.len());
+            for detail in details {
+                let calldata = static_call(
+                    "allowance(address,address,address)",
+                    &[
+                        address_word(owner),
+                        address_word(detail.token),
+                        address_word(spender),
+                    ],
+                );
+                let allowance_result = client
+                    .eth_call_at(contract, calldata, block_number)
+                    .await
+                    .and_then(|data| {
+                        word(&data, 2).ok_or_else(|| Error::Rpc {
+                            method: "eth_call",
+                            reason: "Permit2 allowance result is shorter than three ABI words"
+                                .to_owned(),
+                        })
+                    });
+                allowances.push(Permit2AllowanceItemSnapshot {
+                    signed_nonce: detail.nonce,
+                    onchain_nonce: allowance_result.as_ref().ok().copied(),
+                    state_failure: allowance_result.err().map(|error| error.to_string()),
+                    expiration: detail.expiration,
+                });
+            }
+            ProtocolSnapshot::Permit2Allowance(Permit2AllowanceSnapshot {
+                allowances,
+                signature_deadline,
+                block_timestamp,
+                simulation: signature.map(|_| SimulationResult::Unavailable {
+                    reason: "Permit2 simulation requires recognized execution calldata".to_owned(),
+                }),
+            })
+        }
+        ProtocolRequest::Permit2SignatureTransfer {
+            owner,
+            nonce,
+            signature_deadline,
+        } => {
+            let word_position: U256 = nonce >> 8;
+            let bitmap_result = read_single_u256(
+                client,
+                contract,
+                static_call(
+                    "nonceBitmap(address,uint256)",
+                    &[address_word(owner), word_position.to_be_bytes()],
+                ),
+                block_number,
+            )
+            .await;
+            ProtocolSnapshot::Permit2SignatureTransfer(Permit2SignatureTransferSnapshot {
+                nonce,
+                nonce_bitmap: bitmap_result.as_ref().ok().copied(),
+                state_failure: bitmap_result.err().map(|error| error.to_string()),
+                signature_deadline,
+                block_timestamp,
+                simulation: signature.map(|_| SimulationResult::Unavailable {
+                    reason: "Permit2 transfer simulation requires recognized execution calldata"
+                        .to_owned(),
+                }),
+            })
+        }
+    }
+}
+
+async fn read_single_u256<C: ChainClient>(
+    client: &C,
+    contract: Address,
+    calldata: Bytes,
+    block_number: Option<u64>,
+) -> Result<U256> {
+    let data = client.eth_call_at(contract, calldata, block_number).await?;
+    word(&data, 0).ok_or_else(|| Error::Rpc {
+        method: "eth_call",
+        reason: "result is shorter than one ABI word".to_owned(),
+    })
+}
+
+fn static_call(signature: &str, words: &[[u8; 32]]) -> Bytes {
+    let mut calldata = Vec::with_capacity(4 + words.len() * 32);
+    calldata.extend_from_slice(&keccak256(signature.as_bytes())[..4]);
+    for value in words {
+        calldata.extend_from_slice(value);
+    }
+    Bytes::from(calldata)
+}
+
+fn address_word(address: Address) -> [u8; 32] {
+    let mut word = [0_u8; 32];
+    word[12..].copy_from_slice(address.as_slice());
+    word
+}
+
+fn word(data: &[u8], index: usize) -> Option<U256> {
+    let start = index.checked_mul(32)?;
+    let end = start.checked_add(32)?;
+    data.get(start..end).map(U256::from_be_slice)
 }
 
 async fn probe_erc1271<C: ChainClient>(

@@ -5,7 +5,11 @@ mod input;
 
 use serde::Serialize;
 use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
-use why712_core::{acquire_onchain_snapshot, diagnose_offline as diagnose_core, render_markdown};
+use why712_core::{
+    TypedDataDocument, acquire_onchain_snapshot, acquire_protocol_snapshot,
+    diagnose_offline as diagnose_core, is_erc6492_signature, probe_erc6492, protocol_request,
+    render_markdown,
+};
 
 use crate::{fetch::FetchChainClient, input::WebRequest};
 
@@ -19,6 +23,7 @@ export interface DiagnoseRequest {
   signer?: string;
   contract?: string;
   rpcUrl?: string;
+  erc6492Validator?: string;
   chainId?: number;
 }
 
@@ -34,11 +39,19 @@ export interface DiagnosticFinding {
 }
 
 export interface DiagnosticReport {
-  schemaVersion: number;
+  schemaVersion: 2;
   verdict: "MATCH" | "MISMATCH" | "INCONCLUSIVE";
   computed: Record<string, unknown>;
   expectedSigner?: string;
   recoveredSigner?: string;
+  context?: {
+    inputSource: "TYPED_DATA" | "WALLET_REQUEST" | "TRANSACTION";
+    detectedStandard?: "EIP2612" | "PERMIT2_ALLOWANCE" | "PERMIT2_SIGNATURE_TRANSFER" | "ERC1271" | "ERC6492";
+    chainId?: string;
+    blockNumber?: number;
+    blockTimestamp?: number;
+    protocol?: Record<string, unknown>;
+  };
   findings: DiagnosticFinding[];
 }
 
@@ -83,7 +96,40 @@ pub async fn diagnose(input: JsValue) -> Result<JsValue, JsValue> {
             match acquire_onchain_snapshot(&client, target.contract, target.signer, erc1271_input)
                 .await
             {
-                Ok(snapshot) => (Some(snapshot), None),
+                Ok(mut snapshot) => {
+                    let typed_data = request.typed_data_json()?;
+                    let document = TypedDataDocument::parse_json(&typed_data).map_err(js_error)?;
+                    let protocol =
+                        protocol_request(document.raw(), target.signer).map_err(js_error)?;
+                    if let Some(protocol) = protocol {
+                        snapshot.protocol = Some(
+                            acquire_protocol_snapshot(
+                                &client,
+                                target.contract,
+                                protocol,
+                                request.signature(),
+                                snapshot.block_number,
+                                snapshot.block_timestamp,
+                            )
+                            .await,
+                        );
+                    }
+                    if let (Some(validator), Some(signer), Some(signature)) = (
+                        request.erc6492_validator()?,
+                        target.signer,
+                        request.signature(),
+                    ) && is_erc6492_signature(signature)
+                    {
+                        let encoded = signature.strip_prefix("0x").unwrap_or(signature);
+                        let bytes = alloy_primitives::hex::decode(encoded)
+                            .map(alloy_primitives::Bytes::from)
+                            .map_err(js_error)?;
+                        let digest = document.compute().map_err(js_error)?.digest;
+                        snapshot.erc6492 =
+                            Some(probe_erc6492(&client, validator, signer, digest, bytes).await);
+                    }
+                    (Some(snapshot), None)
+                }
                 Err(error) => (None, Some(error.to_string())),
             }
         }

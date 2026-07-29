@@ -31,7 +31,7 @@ fn offline_binding_returns_the_native_match_verdict() {
     let output = diagnose_offline(request_to_js()).expect("diagnosis succeeds");
     let report: Value = serde_wasm_bindgen::from_value(output).expect("report deserializes");
 
-    assert_eq!(report["schemaVersion"], 1);
+    assert_eq!(report["schemaVersion"], 2);
     assert_eq!(report["verdict"], "MATCH");
     assert!(report["computed"]["digest"].is_string());
     assert!(report["findings"].as_array().is_some_and(Vec::is_empty));

@@ -159,6 +159,36 @@ fn rpc_failure_is_visible_and_falls_back_offline() {
         .stdout(predicate::str::contains("Verdict: MATCH"));
 }
 
+#[test]
+fn accepts_an_unmodified_wallet_request() {
+    let typed_data = std::fs::read_to_string(path("valid-mail.json")).unwrap();
+    let request = serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "eth_signTypedData_v4",
+        "params": [MAIL_SIGNER, typed_data]
+    });
+    command()
+        .args([
+            "check",
+            "--wallet-request",
+            "-",
+            "--signature",
+            MAIL_SIGNATURE,
+            "--signer",
+            MAIL_SIGNER,
+            "--offline",
+            "--format",
+            "json",
+        ])
+        .write_stdin(request.to_string())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "\"inputSource\": \"WALLET_REQUEST\"",
+        ));
+}
+
 fn command() -> Command {
     Command::new(assert_cmd::cargo::cargo_bin("why712"))
 }

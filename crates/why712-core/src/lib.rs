@@ -18,8 +18,10 @@ pub mod chain;
 pub mod diagnose;
 pub mod eip712;
 pub mod erc1271;
+pub mod erc6492;
 pub mod error;
 pub mod input;
+pub mod protocol;
 pub mod report;
 pub mod signature;
 
@@ -28,6 +30,7 @@ pub mod rpc;
 
 pub use chain::{
     ChainClient, DomainProbe, OnchainSnapshot, ProbeFailure, acquire_onchain_snapshot,
+    acquire_protocol_snapshot,
 };
 pub use diagnose::diagnose_offline;
 pub use eip712::{
@@ -39,8 +42,15 @@ pub use erc1271::{
     ERC1271_MAGIC_VALUE, Erc1271Input, Erc1271Probe, decode_is_valid_signature,
     encode_is_valid_signature,
 };
+pub use erc6492::{ERC6492_VALIDATION_GAS, MAX_ERC6492_SIGNATURE_BYTES, probe_erc6492};
 pub use error::{Error, Result};
 pub use input::DiagnoseRequest;
+pub use protocol::{
+    DetectedStandard, DiagnosticContext, ERC6492_DETECTION_SUFFIX, Eip2612Snapshot, Erc6492Probe,
+    InputSource, Permit2AllowanceItemSnapshot, Permit2AllowanceRequest, Permit2AllowanceSnapshot,
+    Permit2SignatureTransferSnapshot, ProtocolRequest, ProtocolSnapshot, SimulationResult,
+    detect_standard, is_erc6492_signature, normalize_typed_data, protocol_request,
+};
 pub use report::{
     Confidence, Finding, FindingCode, REPORT_SCHEMA_VERSION, Report, Severity, Verdict,
     render_markdown,

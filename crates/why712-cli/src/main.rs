@@ -11,14 +11,15 @@ use std::{
     process::ExitCode,
 };
 
-use alloy_primitives::Address;
+use alloy_primitives::{Address, Bytes};
 use anyhow::{Context, Result, bail};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use serde::Deserialize;
 use why712_core::{
-    DiagnoseRequest, DomainProbe, Erc1271Input, FindingCode, HypothesisContext, OnchainSnapshot,
-    TypedDataDocument, Verdict, acquire_onchain_snapshot, diagnose_offline, render_markdown,
-    rpc::AlloyChainClient,
+    DiagnoseRequest, Digest, DomainProbe, Erc1271Input, FindingCode, HypothesisContext,
+    InputSource, OnchainSnapshot, ProtocolRequest, TypedDataDocument, Verdict,
+    acquire_onchain_snapshot, acquire_protocol_snapshot, diagnose_offline, is_erc6492_signature,
+    normalize_typed_data, probe_erc6492, protocol_request, render_markdown, rpc::AlloyChainClient,
 };
 
 use crate::output::{render_computed_text, render_report_text};
@@ -51,7 +52,10 @@ enum Command {
 struct CheckArgs {
     /// Typed-data JSON file, or `-` for stdin.
     #[arg(long, value_name = "FILE")]
-    typed_data: PathBuf,
+    typed_data: Option<PathBuf>,
+    /// Complete `eth_signTypedData_v4` JSON-RPC request file, or `-` for stdin.
+    #[arg(long, value_name = "FILE", conflicts_with = "typed_data")]
+    wallet_request: Option<PathBuf>,
     /// Canonical 65-byte or compact ERC-2098 signature.
     #[arg(long)]
     signature: Option<String>,
@@ -64,6 +68,9 @@ struct CheckArgs {
     /// HTTP JSON-RPC endpoint used to acquire chain evidence.
     #[arg(long, env = "WHY712_RPC_URL")]
     rpc: Option<String>,
+    /// ERC-6492-compatible validator used for a bounded read-only call.
+    #[arg(long, requires = "rpc")]
+    erc6492_validator: Option<Address>,
     /// Candidate chain ID to test during offline hypothesis search.
     #[arg(long)]
     chain_id: Option<u64>,
@@ -149,7 +156,21 @@ async fn check(args: CheckArgs) -> Result<ExitCode> {
     if !args.offline && args.rpc.is_some() && args.contract.is_none() {
         bail!("--rpc requires --contract unless --offline is set");
     }
-    let typed_data_json = read_input(&args.typed_data)?;
+    let input_path = args
+        .typed_data
+        .as_ref()
+        .or(args.wallet_request.as_ref())
+        .context("provide --typed-data or --wallet-request")?;
+    let raw_input = read_input(input_path)?;
+    let (typed_data_json, detected_source) = normalize_typed_data(&raw_input)?;
+    let input_source = if args.wallet_request.is_some() {
+        if detected_source != InputSource::WalletRequest {
+            bail!("--wallet-request requires an eth_signTypedData_v4 JSON-RPC request");
+        }
+        InputSource::WalletRequest
+    } else {
+        detected_source
+    };
     let mut hypothesis_context = HypothesisContext::default();
     if let Some(chain_id) = args.chain_id {
         hypothesis_context.chain_ids.push(chain_id);
@@ -170,7 +191,32 @@ async fn check(args: CheckArgs) -> Result<ExitCode> {
             }
             _ => None,
         };
-        acquire_or_warn(endpoint, contract, args.signer, erc1271_input).await
+        let document = TypedDataDocument::parse_json(&typed_data_json)?;
+        let protocol = protocol_request(document.raw(), args.signer)?;
+        let erc6492_input = match (
+            args.erc6492_validator,
+            args.signer,
+            args.signature.as_deref(),
+        ) {
+            (Some(validator), Some(signer), Some(signature)) if is_erc6492_signature(signature) => {
+                let digest = document.compute()?.digest;
+                let encoded = signature.strip_prefix("0x").unwrap_or(signature);
+                let bytes = alloy_primitives::hex::decode(encoded)
+                    .context("ERC-6492 signature is not valid hex")?;
+                Some((validator, signer, digest, Bytes::from(bytes)))
+            }
+            _ => None,
+        };
+        acquire_or_warn(
+            endpoint,
+            contract,
+            args.signer,
+            erc1271_input,
+            protocol,
+            args.signature.as_deref(),
+            erc6492_input,
+        )
+        .await
     } else {
         (None, None)
     };
@@ -185,6 +231,7 @@ async fn check(args: CheckArgs) -> Result<ExitCode> {
         hypothesis_context,
         onchain_snapshot,
         onchain_failure,
+        input_source,
     };
     let report = diagnose_offline(&request)?;
     match args.format {
@@ -205,9 +252,36 @@ async fn acquire_or_warn(
     contract: Address,
     signer: Option<Address>,
     erc1271_input: Option<Erc1271Input>,
+    protocol_request: Option<ProtocolRequest>,
+    signature: Option<&str>,
+    erc6492_input: Option<(Address, Address, Digest, Bytes)>,
 ) -> (Option<OnchainSnapshot>, Option<String>) {
     let result = match AlloyChainClient::connect(endpoint).await {
-        Ok(client) => acquire_onchain_snapshot(&client, contract, signer, erc1271_input).await,
+        Ok(client) => {
+            async {
+                let mut snapshot =
+                    acquire_onchain_snapshot(&client, contract, signer, erc1271_input).await?;
+                if let Some(request) = protocol_request {
+                    snapshot.protocol = Some(
+                        acquire_protocol_snapshot(
+                            &client,
+                            contract,
+                            request,
+                            signature,
+                            snapshot.block_number,
+                            snapshot.block_timestamp,
+                        )
+                        .await,
+                    );
+                }
+                if let Some((validator, signer, digest, signature)) = erc6492_input {
+                    snapshot.erc6492 =
+                        Some(probe_erc6492(&client, validator, signer, digest, signature).await);
+                }
+                Ok(snapshot)
+            }
+            .await
+        }
         Err(error) => Err(error),
     };
     match result {

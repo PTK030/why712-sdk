@@ -60,10 +60,14 @@ fn reports_onchain_separator_and_contract_signer_evidence() -> Result<(), Box<dy
         contract_code: Bytes::from_static(&[0x60]),
         signer_code: Some(Bytes::from_static(&[0x60, 0x00])),
         erc1271: None,
+        erc6492: None,
         domain: DomainProbe::SeparatorOnly {
             separator: DomainSeparator::from_b256([0x11; 32].into()),
         },
         failures: Vec::new(),
+        block_number: None,
+        block_timestamp: None,
+        protocol: None,
     });
 
     let report = diagnose_offline(&request)?;
@@ -113,8 +117,12 @@ fn uses_erc1271_as_the_contract_signer_verdict() -> Result<(), Box<dyn std::erro
             contract_code: Bytes::from_static(&[0x60]),
             signer_code: Some(Bytes::from_static(&[0x60, 0x00])),
             erc1271: Some(probe),
+            erc6492: None,
             domain: DomainProbe::Unavailable,
             failures: Vec::new(),
+            block_number: None,
+            block_timestamp: None,
+            protocol: None,
         });
 
         let report = diagnose_offline(&request)?;

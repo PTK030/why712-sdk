@@ -3,7 +3,7 @@ source: crates/why712-core/tests/integration_test.rs
 expression: "serde_json::to_string_pretty(&report)?"
 ---
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "verdict": "MATCH",
   "computed": {
     "encodeType": "Mail(Person from,Person to,string contents)Person(string name,address wallet)",
@@ -15,5 +15,8 @@ expression: "serde_json::to_string_pretty(&report)?"
   },
   "expectedSigner": "0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826",
   "recoveredSigner": "0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826",
-  "findings": []
+  "findings": [],
+  "context": {
+    "inputSource": "TYPED_DATA"
+  }
 }

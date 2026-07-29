@@ -33,6 +33,14 @@ impl ChainClient for FakeChainClient {
             Ok(Bytes::from_static(&[0x60]))
         }
     }
+
+    async fn eth_block_number(&self) -> Result<u64> {
+        Ok(100)
+    }
+
+    async fn eth_block_timestamp(&self, _block_number: u64) -> Result<u64> {
+        Ok(1_700_000_000)
+    }
 }
 
 #[tokio::test]

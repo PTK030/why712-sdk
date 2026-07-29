@@ -3,9 +3,10 @@
 use serde_json::Value;
 
 use crate::{
-    Confidence, DiagnoseRequest, DomainProbe, Erc1271Probe, Finding, FindingCode, HypothesisHit,
-    HypothesisKind, OnchainSnapshot, ParsedSignature, RecoveryEncoding, Report, Result, Severity,
-    TypedDataDocument, Verdict, search,
+    Confidence, DiagnoseRequest, DiagnosticContext, DomainProbe, Erc1271Probe, Erc6492Probe,
+    Finding, FindingCode, HypothesisHit, HypothesisKind, OnchainSnapshot, ParsedSignature,
+    ProtocolSnapshot, RecoveryEncoding, Report, Result, Severity, SimulationResult,
+    TypedDataDocument, Verdict, detect_standard, is_erc6492_signature, search,
 };
 
 const MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
@@ -16,6 +17,7 @@ const MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 ///
 /// Returns an error only when the typed data or signature cannot be parsed or hashed. Invalid
 /// but parseable signatures are represented by findings.
+#[allow(clippy::too_many_lines)] // This is the single ordered assembly pipeline for a report.
 pub fn diagnose_offline(request: &DiagnoseRequest) -> Result<Report> {
     let document = TypedDataDocument::parse_json(&request.typed_data_json)?;
     let computed = document.compute()?;
@@ -23,7 +25,11 @@ pub fn diagnose_offline(request: &DiagnoseRequest) -> Result<Report> {
         .onchain_snapshot
         .as_ref()
         .is_some_and(OnchainSnapshot::signer_is_contract);
-    let signature = if signer_is_contract {
+    let is_erc6492 = request
+        .signature
+        .as_deref()
+        .is_some_and(is_erc6492_signature);
+    let signature = if signer_is_contract || is_erc6492 {
         None
     } else {
         request
@@ -42,6 +48,7 @@ pub fn diagnose_offline(request: &DiagnoseRequest) -> Result<Report> {
     }
     if let Some(snapshot) = &request.onchain_snapshot {
         onchain_findings(snapshot, &computed.domain_separator, &mut findings);
+        protocol_findings(snapshot, &mut findings);
     } else if let Some(failure) = &request.onchain_failure {
         findings.push(Finding {
             code: FindingCode::OnchainDomainSource,
@@ -56,6 +63,9 @@ pub fn diagnose_offline(request: &DiagnoseRequest) -> Result<Report> {
             ),
             evidence: Some(failure.clone()),
         });
+    }
+    if is_erc6492 {
+        erc6492_findings(request.onchain_snapshot.as_ref(), &mut findings);
     }
 
     let canonical_match = request
@@ -101,7 +111,17 @@ pub fn diagnose_offline(request: &DiagnoseRequest) -> Result<Report> {
                 | FindingCode::SigZeroS
         )
     });
-    let verdict = if signer_is_contract {
+    let mut verdict = if is_erc6492 {
+        match request
+            .onchain_snapshot
+            .as_ref()
+            .and_then(|snapshot| snapshot.erc6492.as_ref())
+        {
+            Some(Erc6492Probe::Valid) => Verdict::Match,
+            Some(Erc6492Probe::Invalid) => Verdict::Mismatch,
+            Some(Erc6492Probe::Unavailable { .. }) | None => Verdict::Inconclusive,
+        }
+    } else if signer_is_contract {
         request
             .onchain_snapshot
             .as_ref()
@@ -114,11 +134,344 @@ pub fn diagnose_offline(request: &DiagnoseRequest) -> Result<Report> {
             has_signature_fault,
         )
     };
+    if findings
+        .iter()
+        .any(|finding| finding.severity == Severity::Error && is_protocol_finding(finding.code))
+    {
+        verdict = Verdict::Mismatch;
+    } else if findings
+        .iter()
+        .any(|finding| finding.code == FindingCode::ProtocolStateUnavailable)
+    {
+        verdict = Verdict::Inconclusive;
+    }
     let mut report = Report::new(verdict, computed);
     report.expected_signer = request.expected_signer;
     report.recovered_signer = recovered;
     report.findings = findings;
+    let detected_standard = if is_erc6492 {
+        Some(crate::DetectedStandard::Erc6492)
+    } else if signer_is_contract {
+        Some(crate::DetectedStandard::Erc1271)
+    } else {
+        detect_standard(document.raw())
+    };
+    report.context = Some(DiagnosticContext {
+        input_source: request.input_source,
+        detected_standard,
+        chain_id: request
+            .onchain_snapshot
+            .as_ref()
+            .map(|snapshot| snapshot.chain_id),
+        block_number: request
+            .onchain_snapshot
+            .as_ref()
+            .and_then(|snapshot| snapshot.block_number),
+        block_timestamp: request
+            .onchain_snapshot
+            .as_ref()
+            .and_then(|snapshot| snapshot.block_timestamp),
+        protocol: request
+            .onchain_snapshot
+            .as_ref()
+            .and_then(|snapshot| snapshot.protocol.clone()),
+    });
     Ok(report)
+}
+
+fn erc6492_findings(snapshot: Option<&OnchainSnapshot>, findings: &mut Vec<Finding>) {
+    findings.push(protocol_finding(
+        FindingCode::Erc6492WrapperDetected,
+        Severity::Info,
+        "The signature carries the ERC-6492 counterfactual wrapper.",
+        Some("ERC-6492 validation before ERC-1271 or ECDSA".to_owned()),
+        Some("ERC-6492 suffix present".to_owned()),
+        "Validate the wrapper with a bounded ERC-6492-compatible eth_call.",
+    ));
+    match snapshot.and_then(|snapshot| snapshot.erc6492.as_ref()) {
+        Some(Erc6492Probe::Valid) => findings.push(protocol_finding(
+            FindingCode::Erc6492SignatureValid,
+            Severity::Info,
+            "The ERC-6492-compatible validator accepted the signature.",
+            Some("valid".to_owned()),
+            Some("valid".to_owned()),
+            "No signature fix is required.",
+        )),
+        Some(Erc6492Probe::Invalid) => findings.push(protocol_finding(
+            FindingCode::Erc6492SignatureInvalid,
+            Severity::Error,
+            "The ERC-6492-compatible validator rejected the signature.",
+            Some("valid".to_owned()),
+            Some("invalid".to_owned()),
+            "Check the factory data, signer address, inner signature, and wallet authorization.",
+        )),
+        Some(Erc6492Probe::Unavailable { reason }) => {
+            let mut finding = protocol_finding(
+                FindingCode::Erc6492ValidationFailed,
+                Severity::Warning,
+                "ERC-6492 validation could not complete.",
+                None,
+                None,
+                "Use a compatible RPC and keep the wrapper below the documented size limit.",
+            );
+            finding.evidence = Some(reason.clone());
+            findings.push(finding);
+        }
+        None => {}
+    }
+}
+
+#[allow(clippy::too_many_lines)] // The match keeps each protocol's complete finding contract adjacent.
+fn protocol_findings(snapshot: &OnchainSnapshot, findings: &mut Vec<Finding>) {
+    if snapshot.protocol.is_some() && snapshot.block_timestamp.is_none() {
+        let reason = snapshot
+            .failures
+            .iter()
+            .find(|failure| matches!(failure.method, "eth_blockNumber" | "eth_getBlockByNumber"))
+            .map_or("block timestamp was not captured", |failure| {
+                failure.reason.as_str()
+            });
+        state_failure_finding(Some(reason), findings);
+    }
+    match snapshot.protocol.as_ref() {
+        Some(ProtocolSnapshot::Eip2612(state)) => {
+            state_failure_finding(state.state_failure.as_deref(), findings);
+            if state.owner.is_zero() {
+                findings.push(protocol_finding(
+                    FindingCode::PermitOwnerZero,
+                    Severity::Error,
+                    "EIP-2612 forbids the zero address as owner.",
+                    Some("non-zero owner".to_owned()),
+                    Some(state.owner.to_string()),
+                    "Sign a permit for the actual token owner.",
+                ));
+            }
+            if let Some(onchain) = state.onchain_nonce
+                && onchain != state.signed_nonce
+            {
+                findings.push(protocol_finding(
+                    FindingCode::PermitNonceMismatch,
+                    Severity::Error,
+                    "The signed permit nonce differs from contract state.",
+                    Some(onchain.to_string()),
+                    Some(state.signed_nonce.to_string()),
+                    "Read nonces(owner) immediately before requesting a new signature.",
+                ));
+            }
+            deadline_findings(
+                state.deadline,
+                state.block_timestamp,
+                FindingCode::PermitExpired,
+                "The EIP-2612 permit has expired.",
+                findings,
+            );
+            simulation_finding(
+                state.simulation.as_ref(),
+                FindingCode::PermitCallSucceeded,
+                FindingCode::PermitCallReverted,
+                findings,
+            );
+        }
+        Some(ProtocolSnapshot::Permit2Allowance(state)) => {
+            for (index, allowance) in state.allowances.iter().enumerate() {
+                state_failure_finding(allowance.state_failure.as_deref(), findings);
+                if let Some(onchain) = allowance.onchain_nonce
+                    && onchain != allowance.signed_nonce
+                {
+                    let mut finding = protocol_finding(
+                        FindingCode::Permit2NonceMismatch,
+                        Severity::Error,
+                        "The signed Permit2 allowance nonce differs from contract state.",
+                        Some(onchain.to_string()),
+                        Some(allowance.signed_nonce.to_string()),
+                        "Read Permit2 allowance(owner,token,spender) and sign its current nonce.",
+                    );
+                    finding.evidence = Some(format!("Permit2 details index: {index}"));
+                    findings.push(finding);
+                }
+                deadline_findings(
+                    allowance.expiration,
+                    state.block_timestamp,
+                    FindingCode::Permit2AllowanceExpired,
+                    "The Permit2 allowance expiration has passed.",
+                    findings,
+                );
+            }
+            deadline_findings(
+                state.signature_deadline,
+                state.block_timestamp,
+                FindingCode::Permit2SignatureExpired,
+                "The Permit2 signature deadline has passed.",
+                findings,
+            );
+            simulation_finding(
+                state.simulation.as_ref(),
+                FindingCode::Permit2CallSucceeded,
+                FindingCode::Permit2CallReverted,
+                findings,
+            );
+        }
+        Some(ProtocolSnapshot::Permit2SignatureTransfer(state)) => {
+            state_failure_finding(state.state_failure.as_deref(), findings);
+            if let Some(bitmap) = state.nonce_bitmap {
+                let bit =
+                    usize::try_from(state.nonce & alloy_primitives::U256::from(255)).unwrap_or(0);
+                if ((bitmap >> bit) & alloy_primitives::U256::from(1))
+                    != alloy_primitives::U256::ZERO
+                {
+                    findings.push(protocol_finding(
+                        FindingCode::Permit2NonceUsed,
+                        Severity::Error,
+                        "The Permit2 unordered nonce has already been used.",
+                        Some("unset nonce bit".to_owned()),
+                        Some(format!("bit {bit} is set")),
+                        "Choose an unused unordered nonce and request a new signature.",
+                    ));
+                }
+            }
+            deadline_findings(
+                state.signature_deadline,
+                state.block_timestamp,
+                FindingCode::Permit2SignatureExpired,
+                "The Permit2 signature deadline has passed.",
+                findings,
+            );
+            simulation_finding(
+                state.simulation.as_ref(),
+                FindingCode::Permit2CallSucceeded,
+                FindingCode::Permit2CallReverted,
+                findings,
+            );
+        }
+        None => {}
+    }
+}
+
+fn state_failure_finding(reason: Option<&str>, findings: &mut Vec<Finding>) {
+    if let Some(reason) = reason {
+        let mut finding = protocol_finding(
+            FindingCode::ProtocolStateUnavailable,
+            Severity::Warning,
+            "Required protocol state could not be read.",
+            None,
+            None,
+            "Use an RPC endpoint and block that expose the required contract state.",
+        );
+        finding.evidence = Some(reason.to_owned());
+        findings.push(finding);
+    }
+}
+
+fn deadline_findings(
+    deadline: alloy_primitives::U256,
+    timestamp: Option<u64>,
+    expired_code: FindingCode,
+    expired_message: &str,
+    findings: &mut Vec<Finding>,
+) {
+    if deadline >= alloy_primitives::U256::from(100_000_000_000_u64)
+        && deadline < alloy_primitives::U256::from(100_000_000_000_000_u64)
+    {
+        findings.push(protocol_finding(
+            FindingCode::DeadlineLooksLikeMilliseconds,
+            Severity::Warning,
+            "The deadline resembles a JavaScript millisecond timestamp.",
+            Some("Unix timestamp in seconds".to_owned()),
+            Some(deadline.to_string()),
+            "Use Math.floor(Date.now() / 1000) before adding the validity window.",
+        ));
+    }
+    if let Some(timestamp) = timestamp
+        && deadline < alloy_primitives::U256::from(timestamp)
+    {
+        findings.push(protocol_finding(
+            expired_code,
+            Severity::Error,
+            expired_message,
+            Some(format!(">= {timestamp}")),
+            Some(deadline.to_string()),
+            "Request a new signature with a future deadline.",
+        ));
+    }
+}
+
+fn simulation_finding(
+    simulation: Option<&SimulationResult>,
+    success_code: FindingCode,
+    revert_code: FindingCode,
+    findings: &mut Vec<Finding>,
+) {
+    match simulation {
+        Some(SimulationResult::Succeeded) => findings.push(protocol_finding(
+            success_code,
+            Severity::Info,
+            "The read-only verification call succeeded.",
+            Some("success".to_owned()),
+            Some("success".to_owned()),
+            "No simulation fix is required.",
+        )),
+        Some(SimulationResult::Reverted { reason }) => {
+            let mut finding = protocol_finding(
+                revert_code,
+                Severity::Error,
+                "The read-only verification call reverted.",
+                Some("successful eth_call".to_owned()),
+                Some("revert".to_owned()),
+                "Resolve the state or signature findings, then simulate again.",
+            );
+            finding.evidence = Some(reason.clone());
+            findings.push(finding);
+        }
+        Some(SimulationResult::Unavailable { reason }) => {
+            let mut finding = protocol_finding(
+                revert_code,
+                Severity::Warning,
+                "The read-only verification call was unavailable.",
+                None,
+                None,
+                "Use an RPC endpoint that supports the requested historical block.",
+            );
+            finding.confidence = Confidence::High;
+            finding.evidence = Some(reason.clone());
+            findings.push(finding);
+        }
+        None => {}
+    }
+}
+
+fn protocol_finding(
+    code: FindingCode,
+    severity: Severity,
+    message: &str,
+    expected: Option<String>,
+    actual: Option<String>,
+    remediation: &str,
+) -> Finding {
+    Finding {
+        code,
+        severity,
+        confidence: Confidence::High,
+        message: message.to_owned(),
+        expected,
+        actual,
+        remediation: Some(remediation.to_owned()),
+        evidence: None,
+    }
+}
+
+fn is_protocol_finding(code: FindingCode) -> bool {
+    matches!(
+        code,
+        FindingCode::PermitNonceMismatch
+            | FindingCode::PermitExpired
+            | FindingCode::PermitOwnerZero
+            | FindingCode::PermitCallReverted
+            | FindingCode::Permit2NonceUsed
+            | FindingCode::Permit2NonceMismatch
+            | FindingCode::Permit2SignatureExpired
+            | FindingCode::Permit2AllowanceExpired
+            | FindingCode::Permit2CallReverted
+    )
 }
 
 fn onchain_findings(

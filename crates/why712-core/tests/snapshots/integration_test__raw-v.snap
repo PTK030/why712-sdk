@@ -3,7 +3,7 @@ source: crates/why712-core/tests/integration_test.rs
 expression: "serde_json::to_string_pretty(&report)?"
 ---
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "verdict": "MISMATCH",
   "computed": {
     "encodeType": "Mail(Person from,Person to,string contents)Person(string name,address wallet)",
@@ -25,5 +25,8 @@ expression: "serde_json::to_string_pretty(&report)?"
       "actual": "1",
       "remediation": "Add 27 to the final recovery byte."
     }
-  ]
+  ],
+  "context": {
+    "inputSource": "TYPED_DATA"
+  }
 }

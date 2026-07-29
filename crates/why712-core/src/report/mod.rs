@@ -7,12 +7,12 @@ use core::fmt;
 use alloy_primitives::Address;
 use serde::{Deserialize, Serialize};
 
-use crate::ComputedValues;
+use crate::{ComputedValues, DiagnosticContext};
 
 pub use markdown::render_markdown;
 
 /// Current version of the serialized report contract.
-pub const REPORT_SCHEMA_VERSION: u32 = 1;
+pub const REPORT_SCHEMA_VERSION: u32 = 2;
 
 /// Overall outcome of a diagnosis.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
@@ -112,11 +112,45 @@ pub enum FindingCode {
     PersonalSignDetected,
     /// A dynamic `string` or `bytes` value was encoded without hashing.
     UnhashedDynamicValue,
+    /// The signed EIP-2612 nonce differs from contract state.
+    PermitNonceMismatch,
+    /// The EIP-2612 deadline is earlier than the observed block time.
+    PermitExpired,
+    /// A deadline resembles a JavaScript millisecond timestamp.
+    DeadlineLooksLikeMilliseconds,
+    /// EIP-2612 uses the zero address as owner.
+    PermitOwnerZero,
+    /// A read-only EIP-2612 permit call reverted.
+    PermitCallReverted,
+    /// A read-only EIP-2612 permit call succeeded.
+    PermitCallSucceeded,
+    /// A Permit2 unordered nonce bit is already set.
+    Permit2NonceUsed,
+    /// A Permit2 allowance nonce differs from contract state.
+    Permit2NonceMismatch,
+    /// A Permit2 signature deadline has passed.
+    Permit2SignatureExpired,
+    /// A Permit2 allowance expiration has passed.
+    Permit2AllowanceExpired,
+    /// A read-only Permit2 call reverted.
+    Permit2CallReverted,
+    /// A read-only Permit2 call succeeded.
+    Permit2CallSucceeded,
+    /// The signature uses the ERC-6492 wrapper.
+    Erc6492WrapperDetected,
+    /// ERC-6492 validation succeeded.
+    Erc6492SignatureValid,
+    /// ERC-6492 validation returned false.
+    Erc6492SignatureInvalid,
+    /// ERC-6492 validation could not be completed.
+    Erc6492ValidationFailed,
+    /// Required protocol state could not be read.
+    ProtocolStateUnavailable,
 }
 
 impl FindingCode {
     /// Every supported code, used to keep the public catalog complete.
-    pub const ALL: [Self; 29] = [
+    pub const ALL: [Self; 46] = [
         Self::DomainSeparatorMismatch,
         Self::DomainChainIdMismatch,
         Self::DomainNameMismatch,
@@ -146,6 +180,23 @@ impl FindingCode {
         Self::Eip712PrefixMissing,
         Self::PersonalSignDetected,
         Self::UnhashedDynamicValue,
+        Self::PermitNonceMismatch,
+        Self::PermitExpired,
+        Self::DeadlineLooksLikeMilliseconds,
+        Self::PermitOwnerZero,
+        Self::PermitCallReverted,
+        Self::PermitCallSucceeded,
+        Self::Permit2NonceUsed,
+        Self::Permit2NonceMismatch,
+        Self::Permit2SignatureExpired,
+        Self::Permit2AllowanceExpired,
+        Self::Permit2CallReverted,
+        Self::Permit2CallSucceeded,
+        Self::Erc6492WrapperDetected,
+        Self::Erc6492SignatureValid,
+        Self::Erc6492SignatureInvalid,
+        Self::Erc6492ValidationFailed,
+        Self::ProtocolStateUnavailable,
     ];
 
     /// Returns the stable serialized spelling.
@@ -181,6 +232,23 @@ impl FindingCode {
             Self::Eip712PrefixMissing => "EIP712_PREFIX_MISSING",
             Self::PersonalSignDetected => "PERSONAL_SIGN_DETECTED",
             Self::UnhashedDynamicValue => "UNHASHED_DYNAMIC_VALUE",
+            Self::PermitNonceMismatch => "PERMIT_NONCE_MISMATCH",
+            Self::PermitExpired => "PERMIT_EXPIRED",
+            Self::DeadlineLooksLikeMilliseconds => "DEADLINE_LOOKS_LIKE_MILLISECONDS",
+            Self::PermitOwnerZero => "PERMIT_OWNER_ZERO",
+            Self::PermitCallReverted => "PERMIT_CALL_REVERTED",
+            Self::PermitCallSucceeded => "PERMIT_CALL_SUCCEEDED",
+            Self::Permit2NonceUsed => "PERMIT2_NONCE_USED",
+            Self::Permit2NonceMismatch => "PERMIT2_NONCE_MISMATCH",
+            Self::Permit2SignatureExpired => "PERMIT2_SIGNATURE_EXPIRED",
+            Self::Permit2AllowanceExpired => "PERMIT2_ALLOWANCE_EXPIRED",
+            Self::Permit2CallReverted => "PERMIT2_CALL_REVERTED",
+            Self::Permit2CallSucceeded => "PERMIT2_CALL_SUCCEEDED",
+            Self::Erc6492WrapperDetected => "ERC6492_WRAPPER_DETECTED",
+            Self::Erc6492SignatureValid => "ERC6492_SIGNATURE_VALID",
+            Self::Erc6492SignatureInvalid => "ERC6492_SIGNATURE_INVALID",
+            Self::Erc6492ValidationFailed => "ERC6492_VALIDATION_FAILED",
+            Self::ProtocolStateUnavailable => "PROTOCOL_STATE_UNAVAILABLE",
         }
     }
 }
@@ -235,6 +303,10 @@ pub struct Report {
     pub recovered_signer: Option<Address>,
     /// Ordered diagnostic findings.
     pub findings: Vec<Finding>,
+    /// Normalized input and chain/protocol evidence used for this report.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context: Option<DiagnosticContext>,
 }
 
 impl Report {
@@ -248,6 +320,7 @@ impl Report {
             expected_signer: None,
             recovered_signer: None,
             findings: Vec::new(),
+            context: None,
         }
     }
 

@@ -27,10 +27,11 @@ user. There is no telemetry, account system, project backend, or RPC proxy.
 
 When `--rpc` is used, the CLI contacts only the endpoint supplied explicitly or through
 `WHY712_RPC_URL`. The endpoint can observe the caller's IP address and the public chain queries:
-chain ID, runtime code for the contract and expected signer, and domain getter calls. In the
-current milestone the signature and typed-data message are not sent to RPC. Full ERC-1271
-validation is a later milestone and will require sending the digest and signature to the signer
-contract through `eth_call`; the security docs must be updated before that ships.
+chain ID, block metadata, runtime code, domain getters, permit state, and read-only verification
+calls. ERC-1271, EIP-2612 simulation, and optional ERC-6492 validation send the public digest
+and signature as `eth_call` calldata. ERC-6492 validation uses only a validator address supplied
+by the user, rejects wrappers above 128 KiB, and limits the call to five million gas. No call is
+broadcast as a transaction.
 
 RPC operators can return false data. Reports preserve the endpoint-derived values and probe
 fallback source, but why712 does not establish chain consensus or endpoint integrity.
@@ -39,7 +40,8 @@ The browser demo has the same boundary. Typed data, signatures, and reports rema
 browser. It contacts only its static origin for application files and reproducible examples,
 plus an RPC URL the user explicitly supplies. Share links encode the current inputs after `#`;
 URL fragments are not sent in HTTP requests, but anyone receiving the full link can read those
-inputs. Review them before copying a link.
+inputs. RPC URLs and ERC-6492 validator addresses are excluded from share links. Review the
+remaining inputs before copying a link.
 
 ## Sensitive report content
 

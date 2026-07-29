@@ -91,6 +91,42 @@ impl ChainClient for FetchChainClient<'_> {
         parse_bytes("eth_call", &value)
     }
 
+    async fn eth_call_at(&self, to: Address, data: Bytes, block: Option<u64>) -> Result<Bytes> {
+        let Some(block) = block else {
+            return self.eth_call(to, data).await;
+        };
+        let value = self
+            .request(
+                "eth_call",
+                json!([
+                    {
+                        "to": to.to_string(),
+                        "data": format!("0x{}", alloy_primitives::hex::encode(data)),
+                    },
+                    format!("0x{block:x}")
+                ]),
+            )
+            .await?;
+        parse_bytes("eth_call", &value)
+    }
+
+    async fn eth_call_limited(&self, to: Address, data: Bytes, gas: u64) -> Result<Bytes> {
+        let value = self
+            .request(
+                "eth_call",
+                json!([
+                    {
+                        "to": to.to_string(),
+                        "data": format!("0x{}", alloy_primitives::hex::encode(data)),
+                        "gas": format!("0x{gas:x}"),
+                    },
+                    "latest"
+                ]),
+            )
+            .await?;
+        parse_bytes("eth_call", &value)
+    }
+
     async fn eth_chain_id(&self) -> Result<U256> {
         let value = self.request("eth_chainId", json!([])).await?;
         let encoded = string_result("eth_chainId", &value)?;
@@ -103,6 +139,31 @@ impl ChainClient for FetchChainClient<'_> {
             .request("eth_getCode", json!([address.to_string(), "latest"]))
             .await?;
         parse_bytes("eth_getCode", &value)
+    }
+
+    async fn eth_block_number(&self) -> Result<u64> {
+        let value = self.request("eth_blockNumber", json!([])).await?;
+        let encoded = string_result("eth_blockNumber", &value)?;
+        u64::from_str_radix(encoded.trim_start_matches("0x"), 16)
+            .map_err(|source| rpc_error("eth_blockNumber", source))
+    }
+
+    async fn eth_block_timestamp(&self, block_number: u64) -> Result<u64> {
+        let value = self
+            .request(
+                "eth_getBlockByNumber",
+                json!([format!("0x{block_number:x}"), false]),
+            )
+            .await?;
+        let encoded = value
+            .get("timestamp")
+            .and_then(Value::as_str)
+            .ok_or_else(|| Error::Rpc {
+                method: "eth_getBlockByNumber",
+                reason: "result has no timestamp".to_owned(),
+            })?;
+        u64::from_str_radix(encoded.trim_start_matches("0x"), 16)
+            .map_err(|source| rpc_error("eth_getBlockByNumber", source))
     }
 }
 

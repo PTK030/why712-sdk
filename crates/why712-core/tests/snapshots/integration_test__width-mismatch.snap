@@ -3,7 +3,7 @@ source: crates/why712-core/tests/integration_test.rs
 expression: "serde_json::to_string_pretty(&report)?"
 ---
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "verdict": "MISMATCH",
   "computed": {
     "encodeType": "PermitSingle(PermitDetails details,address spender,uint256 sigDeadline)PermitDetails(address token,uint256 amount,uint256 expiration,uint256 nonce)",
@@ -33,5 +33,9 @@ expression: "serde_json::to_string_pretty(&report)?"
       "actual": "0x18f1271B0f09cd513F8eb639EbaE8d052b98Aa34",
       "remediation": "Resolve the more specific digest findings before changing the signer."
     }
-  ]
+  ],
+  "context": {
+    "inputSource": "TYPED_DATA",
+    "detectedStandard": "PERMIT2_ALLOWANCE"
+  }
 }

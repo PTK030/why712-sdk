@@ -17,7 +17,8 @@ file, contact a chain, inspect the clock, or use randomness.
 
 Chain acquisition is deliberately separate:
 
-1. `ChainClient` is the minimal asynchronous port: `eth_call`, `eth_chainId`, and `eth_getCode`.
+1. `ChainClient` is the minimal asynchronous port: `eth_call`, `eth_chainId`, `eth_getCode`,
+   and block number/timestamp lookup.
 2. `acquire_onchain_snapshot` probes the chain and returns a plain value.
 3. The caller passes that value to `diagnose_offline`.
 
@@ -29,6 +30,24 @@ Astro is a build-time delivery layer only. It never owns hashing, diagnosis, rep
 or RPC semantics. `scripts/build-web.mjs` first builds the Rust bindings and copies the shared
 fixture corpus into the public playground tree, then Astro emits the complete static artifact
 to `web/dist`.
+
+## Stateful signature protocols
+
+Typed data is recognized only when its primary type and required fields exactly match EIP-2612
+or an implemented Permit2 shape. RPC acquisition records nonce, deadline, block timestamp, and
+read-only call results in a plain `ProtocolSnapshot`; diagnosis never reads chain state or the
+local clock. Protocol reads and simulations use the captured block number rather than a later
+`latest` state.
+
+EIP-2612 acquisition reads `nonces(owner)` and can simulate the exact `permit` call. Permit2
+allowances read `allowance(owner, token, spender)`; SignatureTransfer reads `nonceBitmap`.
+Permit2 execution is not synthesized without execution calldata because its effective spender
+and transfer details are call-context dependent.
+
+An ERC-6492 suffix is recognized before ERC-1271 and ECDSA. Wrapper detection alone remains
+inconclusive until a caller-selected compatible validator supplies explicit evidence. The
+validator call rejects wrappers above 128 KiB and carries a five-million-gas ceiling; why712
+does not hard-code an external deployment or broadcast the factory call.
 
 ## Domain probing
 
@@ -59,6 +78,12 @@ Checked 2026-07-29:
 - [ERC-1271](https://eips.ethereum.org/EIPS/eip-1271) defines
   `isValidSignature(bytes32,bytes)`, the `0x1626ba7e` success value, a read-only call that may
   invoke arbitrary validation logic, and no fixed gas limit for callers.
+- [ERC-2612](https://eips.ethereum.org/EIPS/eip-2612) defines `nonces(owner)`, deadline checks,
+  the canonical permit fields, and the requirement that invalid permits revert.
+- [ERC-6492](https://eips.ethereum.org/EIPS/eip-6492) defines the detection suffix and requires
+  wrapper validation before ERC-1271 or ECDSA.
+- [Uniswap Permit2 interfaces](https://github.com/Uniswap/permit2/tree/main/src/interfaces)
+  define the ordered allowance tuple and unordered nonce bitmap used by protocol snapshots.
 - The pinned local source for Alloy 2.2.0 confirms `provider-http` plus
   `reqwest-rustls-tls` is the native rustls feature set. The adapter uses only public
   `RootProvider` and `Provider` APIs.

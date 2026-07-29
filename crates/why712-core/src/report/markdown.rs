@@ -19,6 +19,27 @@ pub fn render_markdown(report: &Report) -> String {
     .ok();
     writeln!(output).ok();
 
+    if let Some(context) = &report.context {
+        writeln!(output, "## Input and chain context").ok();
+        writeln!(output).ok();
+        writeln!(output, "| Value | Observation |").ok();
+        writeln!(output, "|---|---|").ok();
+        writeln!(output, "| Input | `{:?}` |", context.input_source).ok();
+        if let Some(standard) = context.detected_standard {
+            writeln!(output, "| Standard | `{standard:?}` |").ok();
+        }
+        if let Some(chain_id) = context.chain_id {
+            writeln!(output, "| Chain ID | `{chain_id}` |").ok();
+        }
+        if let Some(block_number) = context.block_number {
+            writeln!(output, "| Block | `{block_number}` |").ok();
+        }
+        if let Some(timestamp) = context.block_timestamp {
+            writeln!(output, "| Block timestamp | `{timestamp}` |").ok();
+        }
+        writeln!(output).ok();
+    }
+
     if report.expected_signer.is_some() || report.recovered_signer.is_some() {
         writeln!(output, "## Signer").ok();
         writeln!(output).ok();
