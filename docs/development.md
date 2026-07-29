@@ -155,6 +155,13 @@ build for relevant pull requests. On `main`, that same verified `web/` artifact 
 GitHub Pages. GitHub actions are pinned to immutable commit SHAs; update the version comment and
 SHA together after checking the action's official release.
 
+The demo pre-fills `https://ethereum-rpc.publicnode.com` for optional chain evidence. A real
+cross-origin browser probe on 2026-07-29 confirmed that endpoint and
+`https://cloudflare-eth.com`; `https://eth.llamarpc.com` failed the same probe at that time.
+Public RPC behavior can change, so a fetch failure is reported as a possible CORS restriction
+and diagnosis continues offline. Never add a project proxy: the browser and CLI must contact
+only the endpoint selected by the user.
+
 ## Repository knowledge
 
 `docs/` is stable public knowledge. `IMPLEMENTATION_PLAN.md` and `.vault/` are local working

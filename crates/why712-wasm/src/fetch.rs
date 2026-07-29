@@ -151,7 +151,8 @@ fn cors_error(method: &'static str, source: &JsValue) -> Error {
     Error::Rpc {
         method,
         reason: format!(
-            "browser fetch failed; the endpoint may block cross-origin requests (CORS): {}",
+            "browser fetch failed; this RPC may block browser requests (CORS). Use another \
+             endpoint, clear the RPC field for offline mode, or use the CLI: {}",
             js_value_message(source)
         ),
     }

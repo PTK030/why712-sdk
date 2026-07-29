@@ -19,9 +19,9 @@ why712-core = { path = "crates/why712-core", version = "0.1.0" }
 # EIP-712 engine. We deliberately do not implement hashing ourselves: for a tool whose
 # purpose is telling people their hashing is wrong, a bug in its own hashing is the worst
 # possible failure. alloy-dyn-abi exposes every intermediate we need to report.
-alloy-dyn-abi = { version = "1.6.1", default-features = false, features = ["eip712", "std"] }
-alloy-primitives = { version = "1.6.1", default-features = false, features = ["k256", "serde", "std"] }
-alloy-sol-types = { version = "1.6.1", default-features = false, features = ["std"] }
+alloy-dyn-abi = { version = "=1.6.1", default-features = false, features = ["eip712", "std"] }
+alloy-primitives = { version = "=1.6.1", default-features = false, features = ["k256", "serde", "std"] }
+alloy-sol-types = { version = "=1.6.1", default-features = false, features = ["std"] }
 
 # preserve_order: field order in `types` is semantically meaningful and must survive a
 # round trip. arbitrary_precision: a uint256 passed as a JSON number must not silently
@@ -39,7 +39,7 @@ hex = "0.4.3"
 getrandom = "0.2.17"
 
 # Native-only, behind the `rpc` feature.
-alloy = { version = "2.2.0", default-features = false, features = [
+alloy = { version = "=2.2.0", default-features = false, features = [
     "provider-http",
     "reqwest-rustls-tls",
     "rpc-types",
