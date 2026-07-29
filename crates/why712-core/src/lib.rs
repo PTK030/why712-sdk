@@ -20,7 +20,9 @@ pub mod report;
 pub mod signature;
 
 pub use eip712::{
-    ComputedValues, Digest, DomainSeparator, StructHash, TypeHash, TypedDataDocument,
+    Candidate, ComputedValues, Digest, DomainField, DomainSeparator, HypothesisContext,
+    HypothesisHit, HypothesisKind, MAX_CANDIDATES, StructHash, TypeHash, TypedDataDocument,
+    generate_candidates, search,
 };
 pub use error::{Error, Result};
 pub use report::{Finding, FindingCode, REPORT_SCHEMA_VERSION, Report, Severity, Verdict};

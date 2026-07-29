@@ -3,6 +3,7 @@
 use alloy_dyn_abi::eip712::TypedData;
 use alloy_primitives::B256;
 use serde::{Serialize, Serializer};
+use serde_json::Value;
 
 use crate::{Error, Result};
 
@@ -87,6 +88,7 @@ pub struct ComputedValues {
 #[derive(Clone, Debug)]
 pub struct TypedDataDocument {
     inner: TypedData,
+    raw: Value,
 }
 
 impl TypedDataDocument {
@@ -98,10 +100,19 @@ impl TypedDataDocument {
     /// JSON is not a valid EIP-712 document.
     pub fn parse_json(json: &str) -> Result<Self> {
         let value = serde_json::from_str(json).map_err(|source| Error::TypedDataJson { source })?;
-        let inner = serde_json::from_value(value).map_err(|source| Error::TypedDataShape {
-            reason: source.to_string(),
-        })?;
-        Ok(Self { inner })
+        Self::from_value(value)
+    }
+
+    pub(crate) fn from_value(value: Value) -> Result<Self> {
+        let inner =
+            serde_json::from_value(value.clone()).map_err(|source| Error::TypedDataShape {
+                reason: source.to_string(),
+            })?;
+        Ok(Self { inner, raw: value })
+    }
+
+    pub(crate) const fn raw(&self) -> &Value {
+        &self.raw
     }
 
     /// Computes the canonical EIP-712 encoding and every diagnostic intermediate.
