@@ -49,7 +49,8 @@ async fn async_binding_without_rpc_matches_offline_binding() {
 fn auxiliary_bindings_return_javascript_values() {
     let manifest: Value = serde_wasm_bindgen::from_value(examples().expect("manifest serializes"))
         .expect("manifest deserializes");
-    let markdown = report_to_markdown(request_to_js()).expect("markdown renders");
+    let report = diagnose_offline(request_to_js()).expect("diagnosis succeeds");
+    let markdown = report_to_markdown(report).expect("markdown renders");
 
     assert!(
         manifest

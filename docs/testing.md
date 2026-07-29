@@ -207,7 +207,8 @@ execution exists; the core does not emit a false EOA mismatch.
 - reports and the shared example manifest cross the boundary as plain JavaScript objects, not
   ES2015 `Map` values;
 - generated report fields use the documented camelCase shape;
-- the example and Markdown helper bindings return usable JavaScript values.
+- the example and Markdown helper bindings return usable JavaScript values;
+- the exact current report round-trips through JavaScript and into the shared Markdown renderer.
 
 The crate also builds its own browser `fetch` transport for `eth_call`, `eth_chainId`, and
 `eth_getCode`; a CORS or JSON-RPC failure becomes `ONCHAIN_DOMAIN_SOURCE` evidence and does not
@@ -215,6 +216,11 @@ discard the offline report. Generated `pkg/` files are build artifacts and remai
 
 See `docs/development.md` for the exact `wasm-pack` commands and the Windows ChromeDriver
 version-selection caveat.
+
+`web/share.test.mjs` separately proves that fragment-only links round-trip Unicode input,
+remain URL-safe, and discard fields outside the public request shape. The static build copies
+only files referenced by the core fixture manifest; the browser never maintains a second
+example corpus.
 
 ## Required checks
 

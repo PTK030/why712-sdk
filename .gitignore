@@ -6,6 +6,8 @@
 # wasm-pack output
 /web/pkg/
 /crates/why712-wasm/pkg/
+/web/examples/
+/web/build.json
 
 # Insta snapshot review artifacts
 **/*.snap.new

@@ -2,13 +2,13 @@
 
 use alloy_dyn_abi::{DynSolValue, eip712::TypedData};
 use alloy_primitives::B256;
-use serde::{Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de::Error as _};
 use serde_json::Value;
 
 use crate::{Error, Result};
 
 /// The Keccak-256 hash of an EIP-712 `encodeType` string.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(transparent)]
 pub struct TypeHash(B256);
 
@@ -21,7 +21,7 @@ impl TypeHash {
 }
 
 /// The EIP-712 `hashStruct` of the primary message.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(transparent)]
 pub struct StructHash(B256);
 
@@ -34,7 +34,7 @@ impl StructHash {
 }
 
 /// The EIP-712 domain separator.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(transparent)]
 pub struct DomainSeparator(B256);
 
@@ -53,7 +53,7 @@ impl DomainSeparator {
 }
 
 /// The final EIP-712 signing digest.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(transparent)]
 pub struct Digest(B256);
 
@@ -72,7 +72,7 @@ impl Digest {
 }
 
 /// Every EIP-712 intermediate needed to explain a hashing mismatch.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ComputedValues {
     /// Canonical type description for the primary message.
@@ -80,7 +80,10 @@ pub struct ComputedValues {
     /// Hash of [`Self::encode_type`].
     pub type_hash: TypeHash,
     /// Encoded message fields, without the type hash.
-    #[serde(serialize_with = "serialize_hex_bytes")]
+    #[serde(
+        serialize_with = "serialize_hex_bytes",
+        deserialize_with = "deserialize_hex_bytes"
+    )]
     pub encode_data: Vec<u8>,
     /// Hash of the type hash followed by [`Self::encode_data`].
     pub struct_hash: StructHash,
@@ -218,6 +221,14 @@ where
     S: Serializer,
 {
     serializer.serialize_str(&format!("0x{}", hex::encode(value)))
+}
+
+fn deserialize_hex_bytes<'de, D>(deserializer: D) -> core::result::Result<Vec<u8>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = String::deserialize(deserializer)?;
+    hex::decode(value.strip_prefix("0x").unwrap_or(&value)).map_err(D::Error::custom)
 }
 
 fn shape_error(source: &alloy_dyn_abi::Error) -> Error {

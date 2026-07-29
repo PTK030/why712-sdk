@@ -7,8 +7,8 @@
 
 <p align="center">Find out why an EIP-712 signature does not verify.</p>
 
-> **Pre-release:** the native core and CLI are functional. The browser demo, packaged binaries,
-> and production Docker image belong to later milestones and are not available yet.
+> **Pre-release:** the native core, CLI, and local browser demo are functional. The hosted demo,
+> packaged binaries, and production Docker image belong to later milestones.
 
 why712 computes every EIP-712 intermediate, recovers the signer, and searches a bounded set of
 common signing mistakes. When an RPC endpoint is supplied, it reads the contract's actual domain
@@ -43,6 +43,21 @@ cargo install --path crates/why712-cli --locked
 ```
 
 Once the first release is published, the install command will be `cargo install why712`.
+
+## Run the browser demo
+
+The demo is a static, framework-free application over the same Rust core. Build the ignored
+WASM package and copied example corpus, then serve `web/`:
+
+```bash
+node scripts/build-web.mjs
+node scripts/serve-web.mjs
+```
+
+Open `http://127.0.0.1:4173/`. It provides the diagnostic form, field-by-field findings,
+intermediate hashes, one-click fixtures, Markdown copy, and fragment-only share links. No
+typed data is sent to a project backend; an outbound request occurs only when an RPC URL and
+contract are supplied.
 
 ## Commands
 

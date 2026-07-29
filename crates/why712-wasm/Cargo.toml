@@ -31,5 +31,10 @@ console_error_panic_hook.workspace = true
 [dev-dependencies]
 wasm-bindgen-test.workspace = true
 
+[package.metadata.wasm-pack.profile.release]
+# Rust 1.97 emits these standardized instructions. Binaryen requires the feature gates during
+# validation even though current browsers support them.
+wasm-opt = ["-O", "--enable-bulk-memory", "--enable-nontrapping-float-to-int"]
+
 [lints]
 workspace = true

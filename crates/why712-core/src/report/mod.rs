@@ -5,7 +5,7 @@ mod markdown;
 use core::fmt;
 
 use alloy_primitives::Address;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::ComputedValues;
 
@@ -15,7 +15,7 @@ pub use markdown::render_markdown;
 pub const REPORT_SCHEMA_VERSION: u32 = 1;
 
 /// Overall outcome of a diagnosis.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Verdict {
     /// The supplied signature recovers the expected signer.
@@ -27,7 +27,7 @@ pub enum Verdict {
 }
 
 /// User-facing importance of a finding.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Severity {
     /// Supporting context that does not itself invalidate the signature.
@@ -39,7 +39,7 @@ pub enum Severity {
 }
 
 /// Strength of the evidence behind a finding.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum Confidence {
     /// The supplied signature recovered the expected signer under this exact condition.
@@ -51,7 +51,7 @@ pub enum Confidence {
 }
 
 /// Stable machine-readable reason for a diagnostic finding.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum FindingCode {
     /// Local and on-chain domain separators differ.
@@ -180,7 +180,7 @@ impl fmt::Display for FindingCode {
 }
 
 /// One actionable fact discovered during diagnosis.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Finding {
     /// Stable code for programmatic consumers.
@@ -206,7 +206,7 @@ pub struct Finding {
 }
 
 /// Complete deterministic result returned by the diagnosis core.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Report {
     /// Version of this serialized contract.

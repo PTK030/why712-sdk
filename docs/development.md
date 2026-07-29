@@ -70,12 +70,31 @@ cargo check -p why712-core --target wasm32-unknown-unknown
 The last check uses the default core feature set. It proves the optional native provider stack
 has not leaked into the browser dependency graph.
 
-## WASM bindings and browser tests
-
-Generate the ignored browser package:
+For web-facing changes, also run:
 
 ```bash
-wasm-pack build crates/why712-wasm --target web --out-dir pkg --out-name why712_wasm
+node --test web/share.test.mjs web/dom-contract.test.mjs
+node scripts/build-web.mjs
+```
+
+## WASM bindings and browser tests
+
+Build the complete static demo. The script runs the release WASM build, writes its ignored
+package to `web/pkg/`, and copies the manifest's referenced fixtures to ignored
+`web/examples/`:
+
+```bash
+node scripts/build-web.mjs
+node scripts/serve-web.mjs
+```
+
+Open `http://127.0.0.1:4173/`. Set `WHY712_WEB_PORT` to use another port. The server is for
+local development only; production is a static GitHub Pages artifact.
+
+Run the dependency-free URL-fragment tests with:
+
+```bash
+node --test web/share.test.mjs
 ```
 
 Run the JavaScript contract tests in headless Chrome:
@@ -93,6 +112,11 @@ wasm-pack test --headless --chrome --chromedriver /path/to/chromedriver crates/w
 ```
 
 ChromeDriver must match Chrome's `MAJOR.MINOR.BUILD`; patch numbers may differ.
+
+Rust 1.97 emits standardized bulk-memory and non-trapping float-to-int instructions. The
+release profile in `crates/why712-wasm/Cargo.toml` explicitly enables those features during
+wasm-opt validation; removing those flags breaks the production build even though compilation
+and current browsers support the module.
 
 ## Repository knowledge
 

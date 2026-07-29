@@ -47,7 +47,7 @@ fn report_json_is_a_versioned_camel_case_contract() -> Result<(), Box<dyn std::e
         evidence: Some("Candidate digest recovered the expected signer.".to_owned()),
     });
 
-    let json = serde_json::to_value(report)?;
+    let json = serde_json::to_value(&report)?;
     assert_eq!(json["schemaVersion"], REPORT_SCHEMA_VERSION);
     assert_eq!(json["verdict"], "MISMATCH");
     assert!(json.get("expectedSigner").is_none());
@@ -63,5 +63,6 @@ fn report_json_is_a_versioned_camel_case_contract() -> Result<(), Box<dyn std::e
             .as_str()
             .is_some_and(|value| value.starts_with("0x"))
     );
+    assert_eq!(serde_json::from_value::<Report>(json)?, report);
     Ok(())
 }

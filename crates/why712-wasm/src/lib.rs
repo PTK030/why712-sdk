@@ -44,7 +44,7 @@ export interface DiagnosticReport {
 
 export function diagnose_offline(input: DiagnoseRequest): DiagnosticReport;
 export function diagnose(input: DiagnoseRequest): Promise<DiagnosticReport>;
-export function report_to_markdown(input: DiagnoseRequest): string;
+export function report_to_markdown(report: DiagnosticReport): string;
 export function examples(): unknown[];
 "#;
 
@@ -90,15 +90,15 @@ pub async fn diagnose(input: JsValue) -> Result<JsValue, JsValue> {
     to_js_object(&report)
 }
 
-/// Renders the offline report for a request as GitHub-flavored Markdown.
+/// Renders a diagnostic report as GitHub-flavored Markdown.
 ///
 /// # Errors
 ///
-/// Returns a JavaScript error string when the request cannot be diagnosed.
+/// Returns a JavaScript error string when the report does not match the versioned schema.
 #[wasm_bindgen(skip_typescript)]
 pub fn report_to_markdown(input: JsValue) -> Result<String, JsValue> {
-    let request = WebRequest::from_js(input)?;
-    let report = diagnose_core(&request.into_core(None, None)?).map_err(js_error)?;
+    let report = serde_wasm_bindgen::from_value(input)
+        .map_err(|error| JsValue::from_str(&format!("invalid diagnostic report: {error}")))?;
     Ok(render_markdown(&report))
 }
 

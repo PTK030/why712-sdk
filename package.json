@@ -1,0 +1,10 @@
+{
+  "name": "why712-web-workflow",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:web": "node scripts/build-web.mjs",
+    "serve:web": "node scripts/serve-web.mjs",
+    "test:web": "node --test web/share.test.mjs web/dom-contract.test.mjs"
+  }
+}

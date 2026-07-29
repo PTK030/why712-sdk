@@ -35,6 +35,12 @@ contract through `eth_call`; the security docs must be updated before that ships
 RPC operators can return false data. Reports preserve the endpoint-derived values and probe
 fallback source, but why712 does not establish chain consensus or endpoint integrity.
 
+The browser demo has the same boundary. Typed data, signatures, and reports remain in the
+browser. It contacts only its static origin for application files and reproducible examples,
+plus an RPC URL the user explicitly supplies. Share links encode the current inputs after `#`;
+URL fragments are not sent in HTTP requests, but anyone receiving the full link can read those
+inputs. Review them before copying a link.
+
 ## Sensitive report content
 
 Typed-data messages may contain orders, identities, nonces, or business data. JSON and Markdown

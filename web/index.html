@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta
+      name="description"
+      content="Diagnose EIP-712 signature mismatches locally in your browser."
+    >
+    <meta name="color-scheme" content="dark">
+    <title>why712 — EIP-712 signature diagnostics</title>
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <header class="app-bar">
+      <a class="wordmark" href="./" aria-label="why712 home">
+        <span class="wordmark-mark" aria-hidden="true">w?</span>
+        <span>why712</span>
+      </a>
+      <p class="privacy-note">
+        Local by default. No account, telemetry, wallet, or backend.
+      </p>
+      <a class="source-link" href="https://github.com/PTK030/why712">Source</a>
+    </header>
+
+    <main>
+      <section class="tool-intro" aria-labelledby="page-title">
+        <div>
+          <p class="eyebrow">EIP-712 diagnostic console</p>
+          <h1 id="page-title">Find the field that breaks verification.</h1>
+        </div>
+        <p>
+          Paste typed data and a signature. why712 recomputes every intermediate, recovers the
+          signer, and tests bounded hypotheses in the same Rust core as the CLI.
+        </p>
+      </section>
+
+      <section class="workspace" aria-label="Diagnostic workspace">
+        <form id="diagnose-form" class="input-panel">
+          <div class="panel-heading">
+            <div>
+              <span class="step">01</span>
+              <h2>Inputs</h2>
+            </div>
+            <button id="clear-button" class="text-button" type="button">Clear</button>
+          </div>
+
+          <div class="example-strip" aria-labelledby="examples-label">
+            <p id="examples-label">Reproducible cases</p>
+            <div id="example-list" class="example-list" aria-live="polite">
+              <span class="loading-label">Loading examples…</span>
+            </div>
+          </div>
+
+          <label class="field field-large">
+            <span>EIP-712 typed data <strong>required</strong></span>
+            <textarea
+              id="typed-data"
+              name="typedData"
+              rows="17"
+              spellcheck="false"
+              placeholder='{ "types": { … }, "primaryType": "Permit", "domain": { … }, "message": { … } }'
+              required
+            ></textarea>
+          </label>
+
+          <label class="field">
+            <span>Signature</span>
+            <input id="signature" name="signature" type="text" spellcheck="false" placeholder="0x…">
+          </label>
+
+          <div class="field-grid">
+            <label class="field">
+              <span>Expected signer</span>
+              <input id="signer" name="signer" type="text" spellcheck="false" placeholder="0x…">
+            </label>
+            <label class="field">
+              <span>Verifying contract</span>
+              <input id="contract" name="contract" type="text" spellcheck="false" placeholder="0x…">
+            </label>
+          </div>
+
+          <details class="network-options">
+            <summary>Optional chain evidence</summary>
+            <div class="field-grid network-fields">
+              <label class="field">
+                <span>RPC endpoint</span>
+                <input
+                  id="rpc-url"
+                  name="rpcUrl"
+                  type="url"
+                  placeholder="https://your-endpoint.example"
+                >
+                <small>Only this endpoint is contacted, directly from your browser.</small>
+              </label>
+              <label class="field">
+                <span>Candidate chain ID</span>
+                <input id="chain-id" name="chainId" type="number" min="0" step="1" placeholder="1">
+              </label>
+            </div>
+          </details>
+
+          <div class="form-actions">
+            <button id="diagnose-button" class="primary-button" type="submit">
+              <span>Diagnose signature</span>
+              <span aria-hidden="true">→</span>
+            </button>
+            <p id="form-status" class="form-status" role="status"></p>
+          </div>
+        </form>
+
+        <section class="result-panel" aria-labelledby="result-title">
+          <div class="panel-heading">
+            <div>
+              <span class="step">02</span>
+              <h2 id="result-title">Diagnosis</h2>
+            </div>
+            <span id="engine-status" class="engine-status">Engine loading</span>
+          </div>
+
+          <div id="empty-result" class="empty-result">
+            <span class="empty-glyph" aria-hidden="true">?</span>
+            <h3>No report yet</h3>
+            <p>Select an example or paste your own request, then run the diagnosis.</p>
+          </div>
+
+          <div id="report" class="report" hidden>
+            <div id="verdict-card" class="verdict-card">
+              <div>
+                <p class="eyebrow">Verdict</p>
+                <h3 id="verdict-label"></h3>
+              </div>
+              <p id="verdict-summary"></p>
+            </div>
+
+            <div class="report-actions">
+              <button id="copy-markdown" class="secondary-button" type="button">
+                Copy as Markdown
+              </button>
+              <button id="copy-link" class="secondary-button" type="button">Copy link</button>
+            </div>
+
+            <section class="report-section" aria-labelledby="differences-title">
+              <div class="section-heading">
+                <h3 id="differences-title">Field-by-field diagnosis</h3>
+                <span id="finding-count"></span>
+              </div>
+              <div id="finding-list" class="finding-list"></div>
+            </section>
+
+            <section class="report-section" aria-labelledby="signer-title">
+              <h3 id="signer-title">Signer recovery</h3>
+              <dl id="signer-grid" class="value-grid"></dl>
+            </section>
+
+            <section class="report-section" aria-labelledby="computed-title">
+              <h3 id="computed-title">EIP-712 computation</h3>
+              <dl id="computed-grid" class="value-grid"></dl>
+            </section>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <footer>
+      <p>Never paste a private key or seed phrase. Review typed data before sharing a link.</p>
+      <p>Report schema v1 · Runs locally with Rust + WebAssembly</p>
+    </footer>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
