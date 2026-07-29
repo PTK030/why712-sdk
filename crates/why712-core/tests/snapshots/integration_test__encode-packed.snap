@@ -1,0 +1,37 @@
+---
+source: crates/why712-core/tests/integration_test.rs
+expression: "serde_json::to_string_pretty(&report)?"
+---
+{
+  "schemaVersion": 1,
+  "verdict": "MISMATCH",
+  "computed": {
+    "encodeType": "Payment(address from,address to,uint256 amount)",
+    "typeHash": "0x477aa8c025938ae0e68308ba65cb20d25ab38ce00aeb930ff8fec11ab5f3e63a",
+    "encodeData": "0x0000000000000000000000005555555555555555555555555555555555555555000000000000000000000000666666666666666666666666666666666666666600000000000000000000000000000000000000000000000000000000075bcd15",
+    "structHash": "0xa21e55ea73f30e2f44684281052d13f505d1876037b8d257b349cec861046aff",
+    "domainSeparator": "0x2e667b98e0fd80dec52c40795f5f78feff691534aab0743c9639568d4bea26af",
+    "digest": "0xce17c93cde3463be253e80764f48f9a9a1a163a8064a3ec1d054ce36ff18a51a"
+  },
+  "expectedSigner": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+  "recoveredSigner": "0xef87f03cc8675388206315b22185b15b3ad4055a",
+  "findings": [
+    {
+      "code": "ENCODE_PACKED_USED",
+      "severity": "ERROR",
+      "confidence": "CERTAIN",
+      "message": "Packed ABI encoding recovers the expected signer.",
+      "remediation": "Replace packed encoding with canonical EIP-712 encoding.",
+      "evidence": "Digest 0x71d31fd1a44c6681123136d7726e4f10baf874fc9d2f5ee77d41c29885c633d3 recovers the expected signer."
+    },
+    {
+      "code": "SIGNER_MISMATCH",
+      "severity": "ERROR",
+      "confidence": "CERTAIN",
+      "message": "The canonical digest recovers a different signer.",
+      "expected": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "actual": "0xef87f03cC8675388206315B22185B15B3aD4055A",
+      "remediation": "Resolve the more specific digest findings before changing the signer."
+    }
+  ]
+}

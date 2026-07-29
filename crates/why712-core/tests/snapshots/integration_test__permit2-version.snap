@@ -1,0 +1,37 @@
+---
+source: crates/why712-core/tests/integration_test.rs
+expression: "serde_json::to_string_pretty(&report)?"
+---
+{
+  "schemaVersion": 1,
+  "verdict": "MISMATCH",
+  "computed": {
+    "encodeType": "PermitSingle(PermitDetails details,address spender,uint256 sigDeadline)PermitDetails(address token,uint160 amount,uint48 expiration,uint48 nonce)",
+    "typeHash": "0xf3841cd1ff0085026a6327b620b67997ce40f282c88a8e905a7a5626e310f3d0",
+    "encodeData": "0x01f536ae2870f3b421c6dd7e735339989dcbb6238cab6182b2eb39d39b49c1c00000000000000000000000001111111254eeb25477b68fb85ed929f73a960582000000000000000000000000000000000000000000000000000000006553ff10",
+    "structHash": "0x595282927bc1a3ff2fa0e4b481c6234eadeac0aea2164918235462eaa3c7b2ac",
+    "domainSeparator": "0xe59a26548888a5261bf700b7266dde617e60706704a98d294d9af9c62ffe9697",
+    "digest": "0xe225f1b63f26b8ed6813477ca02c906ce0515a64c3d27240b2772fe7a0f28415"
+  },
+  "expectedSigner": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+  "recoveredSigner": "0xef1480f35a532960357295006e76b9a87baa7de2",
+  "findings": [
+    {
+      "code": "DOMAIN_VERSION_UNEXPECTED",
+      "severity": "ERROR",
+      "confidence": "CERTAIN",
+      "message": "Removing domain field version recovers the expected signer.",
+      "remediation": "Remove version from the domain and its EIP712Domain type.",
+      "evidence": "Digest 0xc1c346f90e308ec6fd2e15eab2d7c8ad33dbb88fb8cd5acae0306d4abfb199de recovers the expected signer."
+    },
+    {
+      "code": "SIGNER_MISMATCH",
+      "severity": "ERROR",
+      "confidence": "CERTAIN",
+      "message": "The canonical digest recovers a different signer.",
+      "expected": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "actual": "0xeF1480f35A532960357295006e76b9a87BaA7DE2",
+      "remediation": "Resolve the more specific digest findings before changing the signer."
+    }
+  ]
+}

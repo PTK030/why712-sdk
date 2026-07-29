@@ -14,16 +14,22 @@
 //!   failure. `alloy-dyn-abi` is the engine; this crate exposes the intermediates it computes
 //!   and reasons about them.
 
+pub mod diagnose;
 pub mod eip712;
 pub mod error;
+pub mod input;
 pub mod report;
 pub mod signature;
 
+pub use diagnose::diagnose_offline;
 pub use eip712::{
     Candidate, ComputedValues, Digest, DomainField, DomainSeparator, HypothesisContext,
     HypothesisHit, HypothesisKind, MAX_CANDIDATES, StructHash, TypeHash, TypedDataDocument,
     generate_candidates, search,
 };
 pub use error::{Error, Result};
-pub use report::{Finding, FindingCode, REPORT_SCHEMA_VERSION, Report, Severity, Verdict};
+pub use input::DiagnoseRequest;
+pub use report::{
+    Confidence, Finding, FindingCode, REPORT_SCHEMA_VERSION, Report, Severity, Verdict,
+};
 pub use signature::{ParsedSignature, RecoveryEncoding, SignatureFormat};

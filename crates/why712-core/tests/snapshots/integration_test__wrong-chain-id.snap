@@ -1,0 +1,37 @@
+---
+source: crates/why712-core/tests/integration_test.rs
+expression: "serde_json::to_string_pretty(&report)?"
+---
+{
+  "schemaVersion": 1,
+  "verdict": "MISMATCH",
+  "computed": {
+    "encodeType": "Mail(Person from,Person to,string contents)Person(string name,address wallet)",
+    "typeHash": "0xa0cedeb2dc280ba39b857546d74f5549c3a1d7bdc2dd96bf881f76108e23dac2",
+    "encodeData": "0xfc71e5fa27ff56c350aa531bc129ebdf613b772b6604664f5d8dbe21b85eb0c8cd54f074a4af31b4411ff6a60c9719dbd559c221c8ac3492d9d872b041d703d1b5aadf3154a261abdd9086fc627b61efca26ae5702701d05cd2305f7c52a2fc8",
+    "structHash": "0xc52c0ee5d84264471806290a3f2c4cecfc5490626bf912d01f240d7a274b371e",
+    "domainSeparator": "0x83102377e5b40a663eb5c8575160030d1ed8a86922edf52a972a5b27fc9cc085",
+    "digest": "0x53e341aefc7641107dbb3d5af2a67709d7132f5cc532d728b2b610bf1e4ba72e"
+  },
+  "expectedSigner": "0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826",
+  "recoveredSigner": "0xf672cf05fdc6981cca0390bc3a0add5e93e67f95",
+  "findings": [
+    {
+      "code": "DOMAIN_CHAIN_ID_MISMATCH",
+      "severity": "ERROR",
+      "confidence": "CERTAIN",
+      "message": "Using chain ID 1 recovers the expected signer.",
+      "remediation": "Set domain.chainId to 1 and sign again.",
+      "evidence": "Digest 0xbe609aee343fb3c4b28e1df9e632fca64fcfaede20f02e86244efddf30957bd2 recovers the expected signer."
+    },
+    {
+      "code": "SIGNER_MISMATCH",
+      "severity": "ERROR",
+      "confidence": "CERTAIN",
+      "message": "The canonical digest recovers a different signer.",
+      "expected": "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826",
+      "actual": "0xF672CF05fDc6981ccA0390BC3A0adD5E93e67f95",
+      "remediation": "Resolve the more specific digest findings before changing the signer."
+    }
+  ]
+}

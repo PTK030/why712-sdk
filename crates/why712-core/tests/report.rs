@@ -4,7 +4,8 @@ use std::collections::BTreeSet;
 
 use serde_json::json;
 use why712_core::{
-    Finding, FindingCode, REPORT_SCHEMA_VERSION, Report, Severity, TypedDataDocument, Verdict,
+    Confidence, Finding, FindingCode, REPORT_SCHEMA_VERSION, Report, Severity, TypedDataDocument,
+    Verdict,
 };
 
 const MAIL: &str = include_str!("../fixtures/vectors/eip712-mail.json");
@@ -38,10 +39,12 @@ fn report_json_is_a_versioned_camel_case_contract() -> Result<(), Box<dyn std::e
     report.findings.push(Finding {
         code: FindingCode::DomainChainIdMismatch,
         severity: Severity::Error,
+        confidence: Confidence::Certain,
         message: "The signature verifies on chain 1.".to_owned(),
         expected: Some("1".to_owned()),
         actual: Some("137".to_owned()),
         remediation: Some("Switch to chain 1 and sign again.".to_owned()),
+        evidence: Some("Candidate digest recovered the expected signer.".to_owned()),
     });
 
     let json = serde_json::to_value(report)?;
@@ -54,6 +57,7 @@ fn report_json_is_a_versioned_camel_case_contract() -> Result<(), Box<dyn std::e
         FindingCode::DomainChainIdMismatch.as_str()
     );
     assert_eq!(json["findings"][0]["severity"], "ERROR");
+    assert_eq!(json["findings"][0]["confidence"], "CERTAIN");
     assert!(
         json["computed"]["encodeData"]
             .as_str()

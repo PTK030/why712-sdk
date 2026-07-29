@@ -125,6 +125,20 @@ impl HypothesisKind {
     }
 }
 
+impl DomainField {
+    /// Returns the EIP-712 JSON field spelling.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Name => "name",
+            Self::Version => "version",
+            Self::ChainId => "chainId",
+            Self::VerifyingContract => "verifyingContract",
+            Self::Salt => "salt",
+        }
+    }
+}
+
 /// One ranked digest to test against the expected signer.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]

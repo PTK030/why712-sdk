@@ -144,6 +144,24 @@ digests and signatures:
 
 Sources and vectors last checked on 2026-07-29.
 
+## Offline diagnosis reports
+
+`tests/integration_test.rs` runs `diagnose_offline()` across every entry in the shared manifest.
+Each example asserts its verdict and defining `FindingCode`, then snapshots the complete
+versioned JSON report under `tests/snapshots/`.
+
+The integration contract covers:
+
+- `MATCH` for canonical and ERC-2098 signatures;
+- direct signature findings for raw `v` and high-S;
+- `CERTAIN` root causes only when a candidate digest recovers the expected signer;
+- an accompanying canonical `SIGNER_MISMATCH` showing the actual recovered address;
+- `INCONCLUSIVE` plus a heuristic precision warning when no signature or signer is supplied.
+
+`tests/diagnose.rs` separately proves zero scalars, invalid recovery bytes, digest-only use, and
+the boundary where malformed signatures remain `Error` rather than findings. Snapshot files are
+LF-normalized by `.gitattributes`; they pass under the native Windows toolchain.
+
 ## Required checks
 
 Run these after every milestone:

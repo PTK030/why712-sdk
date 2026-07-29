@@ -34,6 +34,18 @@ pub enum Severity {
     Error,
 }
 
+/// Strength of the evidence behind a finding.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum Confidence {
+    /// The supplied signature recovered the expected signer under this exact condition.
+    Certain,
+    /// A direct deterministic check proves the condition, but not that it caused rejection.
+    High,
+    /// The input has a known risk pattern without proof that information was already lost.
+    Heuristic,
+}
+
 /// Stable machine-readable reason for a diagnostic finding.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -167,6 +179,8 @@ pub struct Finding {
     pub code: FindingCode,
     /// Importance of the finding.
     pub severity: Severity,
+    /// Strength of the supporting evidence.
+    pub confidence: Confidence,
     /// Concise explanation of the observed condition.
     pub message: String,
     /// Value that would verify, when known.
@@ -178,6 +192,9 @@ pub struct Finding {
     /// Concrete corrective action, when known.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub remediation: Option<String>,
+    /// Deterministic proof supporting the finding, when useful to display.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub evidence: Option<String>,
 }
 
 /// Complete deterministic result returned by the diagnosis core.

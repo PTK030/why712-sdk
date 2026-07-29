@@ -1,0 +1,37 @@
+---
+source: crates/why712-core/tests/integration_test.rs
+expression: "serde_json::to_string_pretty(&report)?"
+---
+{
+  "schemaVersion": 1,
+  "verdict": "MISMATCH",
+  "computed": {
+    "encodeType": "Mail(string contents,Person from,Person to)Person(string name,address wallet)",
+    "typeHash": "0xe144161c6441608e84a60384e72aacb75ccd35a3058b70b6a9ce4f389a89c805",
+    "encodeData": "0xb5aadf3154a261abdd9086fc627b61efca26ae5702701d05cd2305f7c52a2fc8fc71e5fa27ff56c350aa531bc129ebdf613b772b6604664f5d8dbe21b85eb0c8cd54f074a4af31b4411ff6a60c9719dbd559c221c8ac3492d9d872b041d703d1",
+    "structHash": "0x2e6b4fd61ade2dc7f106c71683e4ca997f0f2fa43ecab838aac1bd32110126d4",
+    "domainSeparator": "0xf2cee375fa42b42143804025fc449deafd50cc031ca257e0b194a650a912090f",
+    "digest": "0x97a7895c4ea4ccac6864a7055c21e8ac9287db30ed379a4b891a61995e3582b1"
+  },
+  "expectedSigner": "0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826",
+  "recoveredSigner": "0x39e9ae4aece47f0775b9f9f5da54fd80e205a0a5",
+  "findings": [
+    {
+      "code": "FIELD_ORDER_MISMATCH",
+      "severity": "ERROR",
+      "confidence": "CERTAIN",
+      "message": "Field order Mail(from,to,contents) recovers the expected signer.",
+      "remediation": "Declare the struct fields in that exact order.",
+      "evidence": "Digest 0xbe609aee343fb3c4b28e1df9e632fca64fcfaede20f02e86244efddf30957bd2 recovers the expected signer."
+    },
+    {
+      "code": "SIGNER_MISMATCH",
+      "severity": "ERROR",
+      "confidence": "CERTAIN",
+      "message": "The canonical digest recovers a different signer.",
+      "expected": "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826",
+      "actual": "0x39e9Ae4AeCe47F0775b9F9f5Da54fd80E205a0a5",
+      "remediation": "Resolve the more specific digest findings before changing the signer."
+    }
+  ]
+}

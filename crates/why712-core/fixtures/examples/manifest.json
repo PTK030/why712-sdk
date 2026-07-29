@@ -78,6 +78,11 @@
     "signature": "0xff5feaa9f213578935847cbf2d653307b8ec61d470b4ac84ba4b5237f1f41c82037b312fd8e5f7052a5ef53418966c1b1be5b9dd3120fb6511155dea58d7dc801b",
     "signer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
     "signedDigest": "0xc7e35b34ad6a43bfe70edafd3563d8dbb065b75834a9d48effd1447d17d35a1b",
+    "hints": {
+      "domainSalts": [
+        "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      ]
+    },
     "fault": "missing-domain-salt"
   },
   {

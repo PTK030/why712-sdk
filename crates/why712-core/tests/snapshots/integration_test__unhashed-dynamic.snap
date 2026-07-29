@@ -1,0 +1,37 @@
+---
+source: crates/why712-core/tests/integration_test.rs
+expression: "serde_json::to_string_pretty(&report)?"
+---
+{
+  "schemaVersion": 1,
+  "verdict": "MISMATCH",
+  "computed": {
+    "encodeType": "Note(string text,bytes data)",
+    "typeHash": "0x0f7d391d12524252e7df22f1d1817ad41d62de8276a79410202274aed522bb4a",
+    "encodeData": "0xae2f5ccd6be929fd3c2a63c723150791c0b295e84a5e088802ef34d270ffb4fe6adf031833174bbe4c85eafe59ddb54e6584648c2c962c6f94791ab49caa0ad4",
+    "structHash": "0x34474743a909c04c9722e6741256749d2235d11a8683030c21f7c70f8a1e9f79",
+    "domainSeparator": "0x64bab89da3ca1e90681569eb6fa1dbbf593bd61268596ed06d4f04563d2b9202",
+    "digest": "0x99d96dfb079c78c0ecb334433d0b8041c140f3cdfcb9fc3119ab469e3d8d9de6"
+  },
+  "expectedSigner": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+  "recoveredSigner": "0xf72d7c6096e22b64e05d8f7229a08bcce202cdc8",
+  "findings": [
+    {
+      "code": "UNHASHED_DYNAMIC_VALUE",
+      "severity": "ERROR",
+      "confidence": "CERTAIN",
+      "message": "Direct ABI encoding of dynamic values recovers the expected signer.",
+      "remediation": "Hash string and bytes values before EIP-712 struct encoding.",
+      "evidence": "Digest 0x9c08459f5120ac358431a23027e0da0bf16c71f1f9ce0603ae30543063a473ef recovers the expected signer."
+    },
+    {
+      "code": "SIGNER_MISMATCH",
+      "severity": "ERROR",
+      "confidence": "CERTAIN",
+      "message": "The canonical digest recovers a different signer.",
+      "expected": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "actual": "0xf72D7C6096e22b64E05D8F7229a08bccE202cdC8",
+      "remediation": "Resolve the more specific digest findings before changing the signer."
+    }
+  ]
+}

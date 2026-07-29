@@ -1,0 +1,37 @@
+---
+source: crates/why712-core/tests/integration_test.rs
+expression: "serde_json::to_string_pretty(&report)?"
+---
+{
+  "schemaVersion": 1,
+  "verdict": "MISMATCH",
+  "computed": {
+    "encodeType": "Authorization(address account,bytes32 scope,uint256 nonce)",
+    "typeHash": "0xc53c0e2daa08d9137ea065834a45b3a982a8610effafe93df5b83dfd8ed82034",
+    "encodeData": "0x0000000000000000000000003333333333333333333333333333333333333333aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa000000000000000000000000000000000000000000000000000000000000002a",
+    "structHash": "0x7cbd20c3e293f170c4d0186efaa91d599fd3f148f105124309dbbf7e232d5c82",
+    "domainSeparator": "0xb97316c41dc361bd0feef7a95d0ff4e957e5a7ec69d0909dafe83016da275a19",
+    "digest": "0x7ded66de6bfe378357ee4bfe217e8f68d729e535c8c90300332b9abc5916b19b"
+  },
+  "expectedSigner": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+  "recoveredSigner": "0xb94b8f59eff6b49779e79cc9d1ad6d4d5a4f8d0b",
+  "findings": [
+    {
+      "code": "DOMAIN_SALT_MISSING",
+      "severity": "ERROR",
+      "confidence": "CERTAIN",
+      "message": "Adding domain salt 0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb recovers the expected signer.",
+      "remediation": "Declare and set domain salt to 0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.",
+      "evidence": "Digest 0xc7e35b34ad6a43bfe70edafd3563d8dbb065b75834a9d48effd1447d17d35a1b recovers the expected signer."
+    },
+    {
+      "code": "SIGNER_MISMATCH",
+      "severity": "ERROR",
+      "confidence": "CERTAIN",
+      "message": "The canonical digest recovers a different signer.",
+      "expected": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+      "actual": "0xB94b8f59eff6B49779E79cC9D1Ad6D4D5A4f8D0b",
+      "remediation": "Resolve the more specific digest findings before changing the signer."
+    }
+  ]
+}
