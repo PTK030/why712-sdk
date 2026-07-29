@@ -24,6 +24,30 @@
     "fault": "wrong-field-order"
   },
   {
+    "id": "raw-v",
+    "title": "Recovery bit encoded as 0 or 1",
+    "typedData": "valid-mail.json",
+    "signature": "0x4355c47d63924e8a72e509b65029052eb6c299d53a04e167c5775fd466751c9d07299936d304c153f6443dfa05f40ff007d72911b6f72307f996231605b9156201",
+    "signer": "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826",
+    "fault": "raw-v"
+  },
+  {
+    "id": "high-s",
+    "title": "Malleable high-S signature",
+    "typedData": "valid-mail.json",
+    "signature": "0x4355c47d63924e8a72e509b65029052eb6c299d53a04e167c5775fd466751c9df8d666c92cfb3eac09bbc205fa0bf00eb2d7b3d4f8517d33c63c3b76ca7d2bdf1b",
+    "signer": "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826",
+    "fault": "high-s"
+  },
+  {
+    "id": "erc2098-mail",
+    "title": "Valid compact ERC-2098 EIP-712 Mail",
+    "typedData": "valid-mail.json",
+    "signature": "0x4355c47d63924e8a72e509b65029052eb6c299d53a04e167c5775fd466751c9d87299936d304c153f6443dfa05f40ff007d72911b6f72307f996231605b91562",
+    "signer": "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826",
+    "fault": null
+  },
+  {
     "id": "numeric-precision-loss",
     "title": "JSON number above JavaScript's safe range",
     "typedData": "numeric-precision-loss.json",

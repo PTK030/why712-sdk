@@ -51,6 +51,25 @@ Pinned `alloy-dyn-abi` 1.6.1 accepts numeric `uint` values through `Value::as_u6
 These boundaries are covered by `tests/vectors.rs`. Dependency source and behavior last checked
 on 2026-07-29.
 
+## Signature parsing and recovery
+
+`tests/signature.rs` uses the signature published with the canonical EIP-712 `Mail` request to
+verify address recovery. It also derives equivalent encodings from that independently published
+signature and covers:
+
+- canonical 65-byte `r || s || v` signatures with raw `v` (`0`/`1`), historical `v`
+  (`27`/`28`), and transaction-style EIP-155 values;
+- compact 64-byte ERC-2098 signatures, where the parity bit occupies the top bit of canonical
+  low-S;
+- a mathematically equivalent high-S twin, which remains recoverable but is retained as a
+  diagnosable non-canonical state;
+- zero scalar values, invalid recovery bytes, malformed hex, and unsupported lengths.
+
+The high-S behavior follows [EIP-2](https://eips.ethereum.org/EIPS/eip-2): Homestead rejects
+high-S transaction signatures, while the `ecrecover` precompile remains able to recover them.
+The compact representation follows [ERC-2098](https://eips.ethereum.org/EIPS/eip-2098).
+Specifications last checked on 2026-07-29.
+
 ## Shared example corpus
 
 `crates/why712-core/fixtures/examples/` is the single source for core integration tests,
@@ -64,9 +83,10 @@ on 2026-07-29.
 - signature and signer are either both present or both absent.
 
 `tests/fixtures.rs` rejects duplicate IDs, empty metadata, path traversal, malformed signatures
-or addresses, missing files, invalid typed data, and examples that cannot be hashed. It also
-proves that the initial wrong-chain-ID and wrong-field-order cases differ from their valid
-control digest.
+or addresses, missing files, invalid typed data, and examples that cannot be hashed. It proves
+that wrong-chain-ID and wrong-field-order cases differ from their valid control digest, and
+checks signer recovery plus signature classification for canonical, raw-`v`, high-S, and
+ERC-2098 examples.
 
 ## Required checks
 

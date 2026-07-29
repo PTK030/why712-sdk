@@ -8,7 +8,7 @@ use std::{
 
 use alloy_primitives::Address;
 use serde::Deserialize;
-use why712_core::{Digest, TypedDataDocument};
+use why712_core::{Digest, ParsedSignature, RecoveryEncoding, SignatureFormat, TypedDataDocument};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -36,14 +36,43 @@ fn example_manifest_is_self_contained_and_computable() -> Result<(), Box<dyn std
     for example in examples {
         assert!(ids.insert(example.id.clone()));
         assert!(!example.title.trim().is_empty());
-        if let Some(fault) = example.fault {
+        if let Some(fault) = &example.fault {
             assert!(!fault.trim().is_empty());
         }
         assert_eq!(example.signature.is_some(), example.signer.is_some());
         if let (Some(signature), Some(signer)) = (&example.signature, &example.signer) {
             assert!(signature.starts_with("0x"));
-            assert_eq!(hex::decode(&signature[2..])?.len(), 65);
-            let _: Address = signer.parse()?;
+            let signature = ParsedSignature::parse_hex(signature)?;
+            let signer: Address = signer.parse()?;
+
+            match example.id.as_str() {
+                "wrong-chain-id" | "wrong-field-order" => {}
+                "raw-v" => {
+                    assert_eq!(signature.recovery(), RecoveryEncoding::Raw { value: 1 });
+                    assert!(!signature.has_high_s());
+                }
+                "high-s" => assert!(signature.has_high_s()),
+                "erc2098-mail" => {
+                    assert_eq!(signature.format(), SignatureFormat::Erc2098);
+                }
+                _ => {
+                    assert_eq!(signature.format(), SignatureFormat::Canonical);
+                    assert!(!signature.has_high_s());
+                }
+            }
+
+            let relative_path = Path::new(&example.typed_data);
+            assert_eq!(relative_path.components().count(), 1);
+            let typed_data_path = examples_dir.join(relative_path).canonicalize()?;
+            assert!(typed_data_path.starts_with(&examples_root));
+            let typed_data_json = fs::read_to_string(&typed_data_path)?;
+            let values = TypedDataDocument::parse_json(&typed_data_json)?.compute()?;
+            let recovered = signature.recover_address(&values.digest);
+            if matches!(example.id.as_str(), "wrong-chain-id" | "wrong-field-order") {
+                assert_ne!(recovered, Some(signer));
+            } else {
+                assert_eq!(recovered, Some(signer));
+            }
         }
 
         let relative_path = Path::new(&example.typed_data);
