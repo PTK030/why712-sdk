@@ -34,6 +34,40 @@ from Viem **2.45.0**, installed only in an isolated temporary directory:
 
 Source and package version last checked on 2026-07-29. Viem is not a project dependency.
 
+## Numeric JSON values
+
+`serde_json` is built with `arbitrary_precision`. A raw integer literal such as
+`9007199254740993` (one above JavaScript's safe-integer limit) survives Rust parsing exactly and
+produces the same digest as the string `"9007199254740993"`.
+
+Pinned `alloy-dyn-abi` 1.6.1 accepts numeric `uint` values through `Value::as_u64()`. Therefore:
+
+- raw integer literals up to `u64::MAX` are accepted exactly by the Rust path;
+- larger `uint256` values must be JSON strings;
+- `MESSAGE_NUMERIC_PRECISION_LOSS` must inspect the original JSON representation and warn on
+  numeric integer fields above JavaScript's safe range, because a JS caller may have rounded the
+  number before serialization even though Rust itself does not.
+
+These boundaries are covered by `tests/vectors.rs`. Dependency source and behavior last checked
+on 2026-07-29.
+
+## Shared example corpus
+
+`crates/why712-core/fixtures/examples/` is the single source for core integration tests,
+`why712 examples`, and the future web demo:
+
+- each named `.json` file is a plain EIP-712 typed-data document suitable for passing directly
+  to `why712 --typed-data`;
+- `manifest.json` supplies presentation metadata, the optional signature and signer, and a
+  machine-readable fault name;
+- `fault: null` denotes a valid control case;
+- signature and signer are either both present or both absent.
+
+`tests/fixtures.rs` rejects duplicate IDs, empty metadata, path traversal, malformed signatures
+or addresses, missing files, invalid typed data, and examples that cannot be hashed. It also
+proves that the initial wrong-chain-ID and wrong-field-order cases differ from their valid
+control digest.
+
 ## Required checks
 
 Run these after every milestone:

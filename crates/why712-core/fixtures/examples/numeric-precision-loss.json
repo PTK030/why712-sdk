@@ -1,0 +1,13 @@
+{
+  "types": {
+    "EIP712Domain": [],
+    "Amount": [
+      { "name": "value", "type": "uint256" }
+    ]
+  },
+  "primaryType": "Amount",
+  "domain": {},
+  "message": {
+    "value": 9007199254740993
+  }
+}

@@ -5,6 +5,42 @@ use why712_core::TypedDataDocument;
 
 const MAIL: &str = include_str!("../fixtures/vectors/eip712-mail.json");
 const ARRAYS_AND_BYTES: &str = include_str!("../fixtures/vectors/arrays-and-bytes.json");
+const LARGE_SAFE_RUST_NUMBER: &str = r#"{
+  "types": {
+    "EIP712Domain": [],
+    "Amount": [{ "name": "value", "type": "uint256" }]
+  },
+  "primaryType": "Amount",
+  "domain": {},
+  "message": { "value": 9007199254740993 }
+}"#;
+const LARGE_SAFE_RUST_STRING: &str = r#"{
+  "types": {
+    "EIP712Domain": [],
+    "Amount": [{ "name": "value", "type": "uint256" }]
+  },
+  "primaryType": "Amount",
+  "domain": {},
+  "message": { "value": "9007199254740993" }
+}"#;
+const ABOVE_U64_NUMBER: &str = r#"{
+  "types": {
+    "EIP712Domain": [],
+    "Amount": [{ "name": "value", "type": "uint256" }]
+  },
+  "primaryType": "Amount",
+  "domain": {},
+  "message": { "value": 18446744073709551616 }
+}"#;
+const ABOVE_U64_STRING: &str = r#"{
+  "types": {
+    "EIP712Domain": [],
+    "Amount": [{ "name": "value", "type": "uint256" }]
+  },
+  "primaryType": "Amount",
+  "domain": {},
+  "message": { "value": "18446744073709551616" }
+}"#;
 
 #[test]
 fn computes_the_canonical_eip712_mail_vector() -> why712_core::Result<()> {
@@ -69,5 +105,26 @@ fn computes_nested_arrays_and_dynamic_bytes_like_viem() -> why712_core::Result<(
         *values.digest.as_b256(),
         b256!("c669c5801d3e3fb634fc85343807d7432d334886fcfc18bac2da899169a71bec")
     );
+    Ok(())
+}
+
+#[test]
+fn preserves_integer_literals_above_javascript_safe_range() -> why712_core::Result<()> {
+    let number = TypedDataDocument::parse_json(LARGE_SAFE_RUST_NUMBER)?.compute()?;
+    let string = TypedDataDocument::parse_json(LARGE_SAFE_RUST_STRING)?.compute()?;
+
+    assert_eq!(number.digest, string.digest);
+    Ok(())
+}
+
+#[test]
+fn requires_strings_for_uint256_values_above_u64() -> why712_core::Result<()> {
+    assert!(matches!(
+        TypedDataDocument::parse_json(ABOVE_U64_NUMBER),
+        Err(why712_core::Error::TypedDataShape { .. })
+    ));
+
+    let string = TypedDataDocument::parse_json(ABOVE_U64_STRING)?;
+    assert!(string.compute().is_ok());
     Ok(())
 }

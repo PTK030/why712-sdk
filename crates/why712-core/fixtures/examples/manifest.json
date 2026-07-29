@@ -1,0 +1,34 @@
+[
+  {
+    "id": "valid-mail",
+    "title": "Valid canonical EIP-712 Mail",
+    "typedData": "valid-mail.json",
+    "signature": "0x4355c47d63924e8a72e509b65029052eb6c299d53a04e167c5775fd466751c9d07299936d304c153f6443dfa05f40ff007d72911b6f72307f996231605b915621c",
+    "signer": "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826",
+    "fault": null
+  },
+  {
+    "id": "wrong-chain-id",
+    "title": "Wrong chain ID",
+    "typedData": "wrong-chain-id.json",
+    "signature": "0x4355c47d63924e8a72e509b65029052eb6c299d53a04e167c5775fd466751c9d07299936d304c153f6443dfa05f40ff007d72911b6f72307f996231605b915621c",
+    "signer": "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826",
+    "fault": "wrong-chain-id"
+  },
+  {
+    "id": "wrong-field-order",
+    "title": "Wrong primary-type field order",
+    "typedData": "wrong-field-order.json",
+    "signature": "0x4355c47d63924e8a72e509b65029052eb6c299d53a04e167c5775fd466751c9d07299936d304c153f6443dfa05f40ff007d72911b6f72307f996231605b915621c",
+    "signer": "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826",
+    "fault": "wrong-field-order"
+  },
+  {
+    "id": "numeric-precision-loss",
+    "title": "JSON number above JavaScript's safe range",
+    "typedData": "numeric-precision-loss.json",
+    "signature": null,
+    "signer": null,
+    "fault": "numeric-precision-loss"
+  }
+]
