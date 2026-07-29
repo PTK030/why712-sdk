@@ -50,6 +50,19 @@ cargo install --path crates/why712-cli --locked
 
 Once the first release is published, the install command will be `cargo install why712`.
 
+## Run with Docker
+
+Build the production image and run the same CLI without a host Rust toolchain:
+
+```bash
+docker build --file docker/Dockerfile --tag why712:local .
+docker run --rm --network none --read-only why712:local examples
+```
+
+The final image is a non-root distroless runtime containing only the binary and its runtime
+libraries. See [docker/README.md](docker/README.md) for read-only file/stdin examples, exit
+codes, RPC use, and the local Anvil mainnet fork.
+
 ## Run the browser demo
 
 The demo is a static, framework-free application over the same Rust core. Build the ignored

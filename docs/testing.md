@@ -199,6 +199,16 @@ a non-magic `bytes4` yields a mismatch, and a revert or malformed return stays i
 - `--offline` overriding `WHY712_RPC_URL`;
 - stable digest and finding-code output from shared fixtures.
 
+## Container smoke tests
+
+The production Docker build must complete from the repository root, then run with
+`--network none --read-only` against the canonical Mail fixture. The image must report `MATCH`,
+run as the distroless non-root user, and expose only `/usr/local/bin/why712` as its entrypoint.
+
+Validate `docker-compose.yml` with a non-secret `MAINNET_RPC_URL`, start the Anvil healthcheck,
+and confirm chain ID 1 plus real `DOMAIN_SEPARATOR()` responses from mainnet USDC and Permit2.
+The fork is ephemeral; remove its container and network with `docker compose down`.
+
 ## WASM browser contract
 
 `crates/why712-wasm/tests/web.rs` runs through `wasm-bindgen-test` in headless Chrome. It proves:

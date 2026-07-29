@@ -6,6 +6,7 @@ crates/why712-wasm/pkg/
 .vault/
 IMPLEMENTATION_PLAN.md
 assets/
-docs/
+docs/*
+!docs/diagnostics.md
 *.md
 !README.md

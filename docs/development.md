@@ -35,6 +35,38 @@ The script builds `docker/dev.Dockerfile`, keeps the Cargo registry and Linux ta
 in named Docker volumes, and does not mix container build artifacts into the host `target/`.
 Docker Desktop must be running on Windows.
 
+## Production image and mainnet fork
+
+The development image above is intentionally separate from the shipped CLI image. Build and
+smoke-test the latter with:
+
+```bash
+docker build --file docker/Dockerfile --tag why712:local .
+docker run --rm --network none --read-only why712:local --help
+```
+
+The multi-stage build compiles with `cargo build --locked` and copies only the release binary
+into `gcr.io/distroless/cc-debian12:nonroot`. The exact runtime and input/output contract live in
+[`docker/README.md`](../docker/README.md).
+
+For real mainnet contract probes through a local endpoint:
+
+```bash
+MAINNET_RPC_URL=https://your-endpoint.example docker compose up --wait anvil
+```
+
+The service binds Anvil only to `127.0.0.1:8545`, pins Foundry 1.7.1 and chain ID 1, and deploys
+no custom contracts. Stop it with `docker compose down`.
+
+Container sources checked 2026-07-29:
+
+- the official [distroless image catalog](https://github.com/GoogleContainerTools/distroless)
+  lists `cc-debian12:nonroot`, documents its multi-architecture support, and requires vector-form
+  entrypoints because no shell is present;
+- the official [Foundry release](https://github.com/foundry-rs/foundry/releases/tag/v1.7.1)
+  and [Anvil documentation](https://getfoundry.sh/anvil/) define the pinned fork runner and
+  `--fork-url` behavior.
+
 ## Build and run
 
 ```bash
