@@ -112,6 +112,38 @@ Fixture signatures and hashes last regenerated and checked on 2026-07-29. Viem a
 development private key are test-vector tooling only; neither is a project dependency or a
 production secret.
 
+## Hypothesis engine
+
+`tests/hypothesis.rs` proves that candidate generation is deterministic, sorted by rank, and
+hard-limited to 512 candidates even when an eight-field type has more permutations. Search
+tests require a mutation to recover the expected signer before it becomes a hit.
+
+Canonical document mutations are always parsed and hashed again by `alloy-dyn-abi`. Alternative
+encoding strategies also delegate their ABI work to pinned alloy:
+
+- `DynSolValue::abi_encode_packed()` for packed struct members;
+- `DynSolValue::abi_encode_params()` for the intentionally incorrect direct encoding of
+  dynamic `string`/`bytes` values;
+- `eip191_hash_message()` for `personal_sign`.
+
+`abi_encode()` is not interchangeable with `abi_encode_params()` for a dynamic tuple: the
+former treats the tuple as one argument and emits an outer offset, while the latter encodes its
+members as the parameter list. This distinction is covered by the independently generated
+unhashed-dynamic vector.
+
+Pinned Viem 2.45.0 and the public Anvil development key independently produced these alternate
+digests and signatures:
+
+| Strategy | Signed digest |
+|---|---|
+| packed `Payment` members | `0x71d31fd1a44c6681123136d7726e4f10baf874fc9d2f5ee77d41c29885c633d3` |
+| bare `Payment` struct hash | `0xa21e55ea73f30e2f44684281052d13f505d1876037b8d257b349cec861046aff` |
+| domain + struct hash without `0x1901` | `0xceebda57cff755fd6daebd3caa923cb18eb35e142d570e3c08892804a5d24b37` |
+| EIP-191 over the exact `encode-packed.json` text | `0xdba6b87febac084370df9d377623ddbfd135d3304680042ac90b2d3e117e47c7` |
+| unhashed dynamic `Note` values | `0x9c08459f5120ac358431a23027e0da0bf16c71f1f9ce0603ae30543063a473ef` |
+
+Sources and vectors last checked on 2026-07-29.
+
 ## Required checks
 
 Run these after every milestone:

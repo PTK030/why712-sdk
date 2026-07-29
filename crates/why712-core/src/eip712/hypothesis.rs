@@ -2,11 +2,11 @@
 
 use std::collections::BTreeSet;
 
-use alloy_primitives::{Address, B256};
+use alloy_primitives::{Address, B256, eip191_hash_message, keccak256};
 use serde::Serialize;
 use serde_json::{Map, Value};
 
-use crate::{ComputedValues, FindingCode, ParsedSignature, TypedDataDocument};
+use crate::{Digest, FindingCode, ParsedSignature, TypedDataDocument};
 
 /// Hard upper bound for work performed by one hypothesis search.
 pub const MAX_CANDIDATES: usize = 512;
@@ -20,6 +20,8 @@ pub struct HypothesisContext {
     pub chain_ids: Vec<u64>,
     /// Domain salts observed on-chain or otherwise known.
     pub domain_salts: Vec<B256>,
+    /// Candidate verifier addresses, such as token, proxy, implementation, or Permit2.
+    pub verifying_contracts: Vec<Address>,
 }
 
 /// Domain fields that can be added or removed as one mutation.
@@ -47,6 +49,11 @@ pub enum HypothesisKind {
         /// Candidate chain ID.
         value: u64,
     },
+    /// Replace the domain's verifying contract.
+    VerifyingContract {
+        /// Candidate verifier.
+        value: Address,
+    },
     /// Remove one field from both the domain type and value.
     RemoveDomainField {
         /// Removed field.
@@ -71,6 +78,16 @@ pub enum HypothesisKind {
     },
     /// Apply Permit2's `uint160`/`uint48` detail widths.
     Permit2Widths,
+    /// ABI-pack the primary struct members.
+    EncodePacked,
+    /// Sign the bare primary struct hash.
+    BareStructHash,
+    /// Omit the EIP-712 `0x1901` envelope prefix.
+    MissingEip712Prefix,
+    /// Apply EIP-191 personal-message hashing to the original JSON text.
+    PersonalSign,
+    /// ABI-encode dynamic values directly instead of hashing them.
+    UnhashedDynamicValue,
 }
 
 impl HypothesisKind {
@@ -82,6 +99,10 @@ impl HypothesisKind {
             | Self::RemoveDomainField {
                 field: DomainField::ChainId,
             } => FindingCode::DomainChainIdMismatch,
+            Self::VerifyingContract { .. }
+            | Self::RemoveDomainField {
+                field: DomainField::VerifyingContract,
+            } => FindingCode::DomainVerifyingContractMismatch,
             Self::RemoveDomainField {
                 field: DomainField::Version,
             } => FindingCode::DomainVersionUnexpected,
@@ -92,12 +113,14 @@ impl HypothesisKind {
             Self::RemoveDomainField {
                 field: DomainField::Name,
             } => FindingCode::DomainNameMismatch,
-            Self::RemoveDomainField {
-                field: DomainField::VerifyingContract,
-            } => FindingCode::DomainVerifyingContractMismatch,
             Self::DomainVersion { .. } => FindingCode::DomainVersionMismatch,
             Self::FieldOrder { .. } => FindingCode::FieldOrderMismatch,
             Self::Permit2Widths => FindingCode::IntegerWidthMismatch,
+            Self::EncodePacked => FindingCode::EncodePackedUsed,
+            Self::BareStructHash => FindingCode::BareStructHashSigned,
+            Self::MissingEip712Prefix => FindingCode::Eip712PrefixMissing,
+            Self::PersonalSign => FindingCode::PersonalSignDetected,
+            Self::UnhashedDynamicValue => FindingCode::UnhashedDynamicValue,
         }
     }
 }
@@ -110,8 +133,8 @@ pub struct Candidate {
     pub rank: u16,
     /// Mutation applied to the input.
     pub hypothesis: HypothesisKind,
-    /// Canonical EIP-712 values produced by the mutation.
-    pub computed: ComputedValues,
+    /// Digest produced by the mutation.
+    pub digest: Digest,
 }
 
 /// Candidate proven by recovering the expected signer.
@@ -139,8 +162,10 @@ pub fn generate_candidates(
     let original = document.raw();
 
     generate_chain_ids(original, context, &mut output, &mut digests);
+    generate_verifying_contracts(original, context, &mut output, &mut digests);
     generate_domain_fields(original, context, &mut output, &mut digests);
     generate_permit2_widths(original, &mut output, &mut digests);
+    generate_alternate_digests(document, &mut output, &mut digests);
     generate_field_orders(original, &mut output, &mut digests);
     output.sort_by_key(|candidate| candidate.rank);
     output
@@ -157,14 +182,14 @@ pub fn search(
     generate_candidates(document, context)
         .into_iter()
         .filter_map(|candidate| {
-            (signature.recover_address(&candidate.computed.digest) == Some(expected_signer)).then(
-                || HypothesisHit {
+            (signature.recover_address(&candidate.digest) == Some(expected_signer)).then(|| {
+                HypothesisHit {
                     rank: candidate.rank,
                     code: candidate.hypothesis.finding_code(),
                     hypothesis: candidate.hypothesis,
-                    digest: candidate.computed.digest,
-                },
-            )
+                    digest: candidate.digest,
+                }
+            })
         })
         .collect()
 }
@@ -189,8 +214,115 @@ fn push_candidate(
         output.push(Candidate {
             rank,
             hypothesis,
-            computed,
+            digest: computed.digest,
         });
+    }
+}
+
+fn push_digest_candidate(
+    digest: B256,
+    rank: u16,
+    hypothesis: HypothesisKind,
+    output: &mut Vec<Candidate>,
+    digests: &mut BTreeSet<B256>,
+) {
+    if output.len() < MAX_CANDIDATES && digests.insert(digest) {
+        output.push(Candidate {
+            rank,
+            hypothesis,
+            digest: Digest::from_b256(digest),
+        });
+    }
+}
+
+fn generate_alternate_digests(
+    document: &TypedDataDocument,
+    output: &mut Vec<Candidate>,
+    digests: &mut BTreeSet<B256>,
+) {
+    let Ok(computed) = document.compute() else {
+        return;
+    };
+    let domain = *computed.domain_separator.as_b256();
+    let struct_hash = *computed.struct_hash.as_b256();
+
+    if let Ok(packed_struct_hash) = document.packed_struct_hash() {
+        push_digest_candidate(
+            envelope_digest(domain, packed_struct_hash, true),
+            350,
+            HypothesisKind::EncodePacked,
+            output,
+            digests,
+        );
+    }
+    if let Ok(Some(unhashed_struct_hash)) = document.unhashed_dynamic_struct_hash() {
+        push_digest_candidate(
+            envelope_digest(domain, unhashed_struct_hash, true),
+            355,
+            HypothesisKind::UnhashedDynamicValue,
+            output,
+            digests,
+        );
+    }
+    push_digest_candidate(
+        struct_hash,
+        360,
+        HypothesisKind::BareStructHash,
+        output,
+        digests,
+    );
+    push_digest_candidate(
+        envelope_digest(domain, struct_hash, false),
+        370,
+        HypothesisKind::MissingEip712Prefix,
+        output,
+        digests,
+    );
+    push_digest_candidate(
+        eip191_hash_message(document.source_json()),
+        380,
+        HypothesisKind::PersonalSign,
+        output,
+        digests,
+    );
+}
+
+fn envelope_digest(domain: B256, struct_hash: B256, with_prefix: bool) -> B256 {
+    let mut input = Vec::with_capacity(if with_prefix { 66 } else { 64 });
+    if with_prefix {
+        // EIP-712 section "Specification of the eth_signTypedData JSON RPC" magic bytes.
+        input.extend([0x19, 0x01]);
+    }
+    input.extend(domain);
+    input.extend(struct_hash);
+    keccak256(input)
+}
+
+fn generate_verifying_contracts(
+    original: &Value,
+    context: &HypothesisContext,
+    output: &mut Vec<Candidate>,
+    digests: &mut BTreeSet<B256>,
+) {
+    let mut contracts = BTreeSet::new();
+    contracts.extend(context.verifying_contracts.iter().copied());
+    for value in contracts {
+        let mut candidate = original.clone();
+        let Some(domain) = object_mut(&mut candidate, "domain") else {
+            continue;
+        };
+        let encoded = value.to_string();
+        if domain.get("verifyingContract").and_then(Value::as_str) == Some(&encoded) {
+            continue;
+        }
+        domain.insert("verifyingContract".to_owned(), encoded.into());
+        push_candidate(
+            candidate,
+            110,
+            HypothesisKind::VerifyingContract { value },
+            output,
+            digests,
+        );
     }
 }
 

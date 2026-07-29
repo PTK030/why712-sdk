@@ -1,6 +1,6 @@
 //! Thin wrapper around `alloy-dyn-abi` that preserves diagnostic intermediates.
 
-use alloy_dyn_abi::eip712::TypedData;
+use alloy_dyn_abi::{DynSolValue, eip712::TypedData};
 use alloy_primitives::B256;
 use serde::{Serialize, Serializer};
 use serde_json::Value;
@@ -89,6 +89,7 @@ pub struct ComputedValues {
 pub struct TypedDataDocument {
     inner: TypedData,
     raw: Value,
+    source_json: String,
 }
 
 impl TypedDataDocument {
@@ -100,19 +101,67 @@ impl TypedDataDocument {
     /// JSON is not a valid EIP-712 document.
     pub fn parse_json(json: &str) -> Result<Self> {
         let value = serde_json::from_str(json).map_err(|source| Error::TypedDataJson { source })?;
-        Self::from_value(value)
+        Self::from_value_and_source(value, json.to_owned())
     }
 
     pub(crate) fn from_value(value: Value) -> Result<Self> {
+        let source_json =
+            serde_json::to_string(&value).map_err(|source| Error::TypedDataShape {
+                reason: source.to_string(),
+            })?;
+        Self::from_value_and_source(value, source_json)
+    }
+
+    fn from_value_and_source(value: Value, source_json: String) -> Result<Self> {
         let inner =
             serde_json::from_value(value.clone()).map_err(|source| Error::TypedDataShape {
                 reason: source.to_string(),
             })?;
-        Ok(Self { inner, raw: value })
+        Ok(Self {
+            inner,
+            raw: value,
+            source_json,
+        })
     }
 
     pub(crate) const fn raw(&self) -> &Value {
         &self.raw
+    }
+
+    pub(crate) fn packed_struct_hash(&self) -> Result<B256> {
+        let mut encoded = self
+            .inner
+            .type_hash()
+            .map_err(|source| shape_error(&source))?
+            .to_vec();
+        encoded.extend(
+            self.inner
+                .coerce()
+                .map_err(|source| shape_error(&source))?
+                .abi_encode_packed(),
+        );
+        Ok(alloy_primitives::keccak256(encoded))
+    }
+
+    pub(crate) fn unhashed_dynamic_struct_hash(&self) -> Result<Option<B256>> {
+        let type_hash = self
+            .inner
+            .type_hash()
+            .map_err(|source| shape_error(&source))?;
+        let value = self.inner.coerce().map_err(|source| shape_error(&source))?;
+        let DynSolValue::CustomStruct { tuple, .. } = value else {
+            return Ok(None);
+        };
+        let mut values = Vec::with_capacity(tuple.len() + 1);
+        values.push(DynSolValue::FixedBytes(type_hash, 32));
+        values.extend(tuple);
+        Ok(Some(alloy_primitives::keccak256(
+            DynSolValue::Tuple(values).abi_encode_params(),
+        )))
+    }
+
+    pub(crate) fn source_json(&self) -> &str {
+        &self.source_json
     }
 
     /// Computes the canonical EIP-712 encoding and every diagnostic intermediate.

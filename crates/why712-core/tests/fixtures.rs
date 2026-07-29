@@ -82,6 +82,7 @@ fn example_manifest_is_self_contained_and_computable() -> Result<(), Box<dyn std
                     | "permit2-version"
                     | "missing-salt"
                     | "width-mismatch"
+                    | "unhashed-dynamic"
             ) {
                 assert_ne!(recovered, Some(signer));
             } else {

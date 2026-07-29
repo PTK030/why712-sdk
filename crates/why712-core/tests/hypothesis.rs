@@ -10,6 +10,7 @@ use why712_core::{
 
 const MAIL_SIGNATURE: &str = "0x4355c47d63924e8a72e509b65029052eb6c299d53a04e167c5775fd466751c9d07299936d304c153f6443dfa05f40ff007d72911b6f72307f996231605b915621c";
 const ANVIL_SIGNER: &str = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
+const VALID_MAIL: &str = include_str!("../fixtures/examples/valid-mail.json");
 
 #[test]
 fn finds_wrong_chain_id_and_field_order() -> Result<(), Box<dyn std::error::Error>> {
@@ -25,6 +26,27 @@ fn finds_wrong_chain_id_and_field_order() -> Result<(), Box<dyn std::error::Erro
     assert!(chain_hits.iter().any(|hit| {
         hit.code == FindingCode::DomainChainIdMismatch
             && hit.hypothesis == HypothesisKind::ChainId { value: 1 }
+    }));
+
+    let correct_contract: Address = "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC".parse()?;
+    let wrong_contract = TypedDataDocument::parse_json(&VALID_MAIL.replace(
+        "0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC",
+        "0x7777777777777777777777777777777777777777",
+    ))?;
+    let contract_hits = search(
+        &wrong_contract,
+        &signature,
+        signer,
+        &HypothesisContext {
+            verifying_contracts: vec![correct_contract],
+            ..HypothesisContext::default()
+        },
+    );
+    assert!(contract_hits.iter().any(|hit| {
+        hit.hypothesis
+            == HypothesisKind::VerifyingContract {
+                value: correct_contract,
+            }
     }));
 
     let order_hits = search(
@@ -95,6 +117,70 @@ fn adds_a_known_domain_salt() -> Result<(), Box<dyn std::error::Error>> {
     assert!(hits.iter().any(|hit| {
         hit.hypothesis == HypothesisKind::AddDomainSalt { salt }
             && hit.code == FindingCode::DomainSaltMissing
+    }));
+    Ok(())
+}
+
+#[test]
+fn finds_alternate_encoding_and_envelope_strategies() -> Result<(), Box<dyn std::error::Error>> {
+    let signer: Address = ANVIL_SIGNER.parse()?;
+    let document = load("encode-packed.json")?;
+    let cases = [
+        (
+            "0x6e8683e5274fd88ac427179b8258d4fe3b0ff1cef3e123a56a15b0daf2d113135e69c2740fb9add993181afc61f9baddff27fa339c4639446a4ea7f8b8feacb61c",
+            HypothesisKind::EncodePacked,
+            "0x71d31fd1a44c6681123136d7726e4f10baf874fc9d2f5ee77d41c29885c633d3",
+        ),
+        (
+            "0xb10ec718e13a7974fdc950c1f97a4819fd5779ae26b3acb994343e24122bab3661460ffdfe2b0a16be46fb97ecb9dfee9c6b8f59814815e349df357b08315a781b",
+            HypothesisKind::BareStructHash,
+            "0xa21e55ea73f30e2f44684281052d13f505d1876037b8d257b349cec861046aff",
+        ),
+        (
+            "0xf7c172fa3cabae1c4c2a3ab8ddc41579bc747be55da76ac154c1c00638b99a8c7e38339ef7d2a0a4f096c2361c4d47bcafad8e7891747871aecd9a81c14f6da01c",
+            HypothesisKind::MissingEip712Prefix,
+            "0xceebda57cff755fd6daebd3caa923cb18eb35e142d570e3c08892804a5d24b37",
+        ),
+        (
+            "0xb71b1db4afaf6c965845b32a89e81971062aa7bade43ab8d3ba131b50a455a5377e820402bbaa5b06c47df43b212d247519e0fa19d23b1da8f02ee520f9066cd1c",
+            HypothesisKind::PersonalSign,
+            "0xdba6b87febac084370df9d377623ddbfd135d3304680042ac90b2d3e117e47c7",
+        ),
+    ];
+
+    for (signature, hypothesis, digest) in cases {
+        let hits = search(
+            &document,
+            &ParsedSignature::parse_hex(signature)?,
+            signer,
+            &HypothesisContext::default(),
+        );
+        let expected_digest: B256 = digest.parse()?;
+        assert!(hits.iter().any(|hit| {
+            hit.hypothesis == hypothesis && hit.digest.as_b256() == &expected_digest
+        }));
+    }
+    Ok(())
+}
+
+#[test]
+fn finds_unhashed_dynamic_values() -> Result<(), Box<dyn std::error::Error>> {
+    let signer: Address = ANVIL_SIGNER.parse()?;
+    let signature = ParsedSignature::parse_hex(
+        "0x031d036c105fad4c7fb92b66e214f7fc72817183522bd1651a5aa10e3a12d21d1a2867061320a822a30c1356a21cc3fc44b11fbfa3da414152f361b11f5e5e241b",
+    )?;
+    let document = load("unhashed-dynamic.json")?;
+    let actual = generate_candidates(&document, &HypothesisContext::default())
+        .into_iter()
+        .find(|candidate| candidate.hypothesis == HypothesisKind::UnhashedDynamicValue)
+        .map(|candidate| candidate.digest);
+    let hits = search(&document, &signature, signer, &HypothesisContext::default());
+    let expected: B256 =
+        "0x9c08459f5120ac358431a23027e0da0bf16c71f1f9ce0603ae30543063a473ef".parse()?;
+    assert_eq!(actual.map(|digest| *digest.as_b256()), Some(expected));
+
+    assert!(hits.iter().any(|hit| {
+        hit.hypothesis == HypothesisKind::UnhashedDynamicValue && hit.digest.as_b256() == &expected
     }));
     Ok(())
 }

@@ -1,0 +1,25 @@
+{
+  "types": {
+    "EIP712Domain": [
+      { "name": "name", "type": "string" },
+      { "name": "version", "type": "string" },
+      { "name": "chainId", "type": "uint256" },
+      { "name": "verifyingContract", "type": "address" }
+    ],
+    "Note": [
+      { "name": "text", "type": "string" },
+      { "name": "data", "type": "bytes" }
+    ]
+  },
+  "primaryType": "Note",
+  "domain": {
+    "name": "Dynamic Notes",
+    "version": "1",
+    "chainId": 1,
+    "verifyingContract": "0x7777777777777777777777777777777777777777"
+  },
+  "message": {
+    "text": "hello dynamic world",
+    "data": "0x123456"
+  }
+}

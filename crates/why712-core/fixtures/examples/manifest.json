@@ -90,6 +90,15 @@
     "fault": "integer-width-mismatch"
   },
   {
+    "id": "unhashed-dynamic",
+    "title": "Dynamic string and bytes encoded without hashing",
+    "typedData": "unhashed-dynamic.json",
+    "signature": "0x031d036c105fad4c7fb92b66e214f7fc72817183522bd1651a5aa10e3a12d21d1a2867061320a822a30c1356a21cc3fc44b11fbfa3da414152f361b11f5e5e241b",
+    "signer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "signedDigest": "0x9c08459f5120ac358431a23027e0da0bf16c71f1f9ce0603ae30543063a473ef",
+    "fault": "unhashed-dynamic-value"
+  },
+  {
     "id": "numeric-precision-loss",
     "title": "JSON number above JavaScript's safe range",
     "typedData": "numeric-precision-loss.json",
