@@ -4,7 +4,10 @@ use alloy_primitives::Address;
 use serde::Deserialize;
 use serde_json::Value;
 use wasm_bindgen::JsValue;
-use why712_core::{DiagnoseRequest, DomainProbe, Error, HypothesisContext, OnchainSnapshot};
+use why712_core::{
+    DiagnoseRequest, DomainProbe, Erc1271Input, Error, HypothesisContext, OnchainSnapshot,
+    TypedDataDocument,
+};
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -57,6 +60,21 @@ impl WebRequest {
         }
     }
 
+    pub(crate) fn erc1271_input(&self) -> Result<Option<Erc1271Input>, JsValue> {
+        match (&self.signer, self.signature.as_deref()) {
+            (Some(_), Some(signature)) => {
+                let digest = TypedDataDocument::parse_json(&self.typed_data_json()?)
+                    .and_then(|document| document.compute())
+                    .map_err(|error| JsValue::from_str(&error.to_string()))?
+                    .digest;
+                Erc1271Input::from_signature_hex(digest, signature)
+                    .map(Some)
+                    .map_err(|error| JsValue::from_str(&error.to_string()))
+            }
+            _ => Ok(None),
+        }
+    }
+
     pub(crate) fn into_core(
         self,
         onchain_snapshot: Option<OnchainSnapshot>,
@@ -82,11 +100,7 @@ impl WebRequest {
         if let Some(snapshot) = &onchain_snapshot {
             enrich_hypotheses(snapshot, &mut hypothesis_context);
         }
-        let typed_data_json = match self.typed_data {
-            TypedDataInput::Json(json) => json,
-            TypedDataInput::Value(value) => serde_json::to_string(&value)
-                .map_err(|error| JsValue::from_str(&error.to_string()))?,
-        };
+        let typed_data_json = self.typed_data_json()?;
         Ok(DiagnoseRequest {
             typed_data_json,
             signature: self.signature,
@@ -95,6 +109,15 @@ impl WebRequest {
             onchain_snapshot,
             onchain_failure,
         })
+    }
+
+    fn typed_data_json(&self) -> Result<String, JsValue> {
+        match &self.typed_data {
+            TypedDataInput::Json(json) => Ok(json.clone()),
+            TypedDataInput::Value(value) => {
+                serde_json::to_string(value).map_err(|error| JsValue::from_str(&error.to_string()))
+            }
+        }
     }
 }
 

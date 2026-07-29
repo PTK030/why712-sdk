@@ -100,7 +100,26 @@ the more specific domain, type, encoding, or signature findings before changing 
 ## SIGNER_IS_CONTRACT
 
 The expected signer has contract code and may validate through ERC-1271 rather than ECDSA
-recovery. Call `isValidSignature(bytes32,bytes)` on that contract.
+recovery. When a signature and RPC endpoint are available, why712 calls
+`isValidSignature(bytes32,bytes)` on that contract.
+
+## ERC1271_SIGNATURE_VALID
+
+The expected signer is a contract and returned the ERC-1271 magic value `0x1626ba7e` for the
+computed EIP-712 digest and the complete opaque signature bytes. The contract, not ECDSA
+recovery, is authoritative for this result.
+
+## ERC1271_SIGNATURE_INVALID
+
+The expected signer is a contract, but `isValidSignature(bytes32,bytes)` returned a standard
+`bytes4` value other than `0x1626ba7e`. Use the signature scheme and authorization state expected
+by that contract.
+
+## ERC1271_CALL_FAILED
+
+The expected signer is a contract, but its ERC-1271 call reverted, failed in transport, or
+returned data that was not a valid ABI-encoded `bytes4`. The result is inconclusive: inspect the
+contract implementation, current authorization state, and RPC evidence.
 
 ## ONCHAIN_DOMAIN_SELF_INCONSISTENT
 

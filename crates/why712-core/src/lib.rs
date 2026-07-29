@@ -35,7 +35,10 @@ pub use eip712::{
     HypothesisContext, HypothesisHit, HypothesisKind, MAX_CANDIDATES, OnchainDomain, StructHash,
     TypeHash, TypedDataDocument, generate_candidates, search,
 };
-pub use erc1271::{ERC1271_MAGIC_VALUE, encode_is_valid_signature};
+pub use erc1271::{
+    ERC1271_MAGIC_VALUE, Erc1271Input, Erc1271Probe, decode_is_valid_signature,
+    encode_is_valid_signature,
+};
 pub use error::{Error, Result};
 pub use input::DiagnoseRequest;
 pub use report::{

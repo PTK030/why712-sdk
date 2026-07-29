@@ -76,10 +76,13 @@ pub fn diagnose_offline(input: JsValue) -> Result<JsValue, JsValue> {
 #[wasm_bindgen(skip_typescript)]
 pub async fn diagnose(input: JsValue) -> Result<JsValue, JsValue> {
     let request = WebRequest::from_js(input)?;
+    let erc1271_input = request.erc1271_input()?;
     let (snapshot, failure) = match request.rpc_target()? {
         Some(target) => {
             let client = FetchChainClient::new(target.endpoint);
-            match acquire_onchain_snapshot(&client, target.contract, target.signer).await {
+            match acquire_onchain_snapshot(&client, target.contract, target.signer, erc1271_input)
+                .await
+            {
                 Ok(snapshot) => (Some(snapshot), None),
                 Err(error) => (None, Some(error.to_string())),
             }

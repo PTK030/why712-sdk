@@ -94,6 +94,12 @@ pub enum FindingCode {
     SignerMismatch,
     /// The expected signer has contract code and may require ERC-1271.
     SignerIsContract,
+    /// The signer contract accepted the digest and opaque signature through ERC-1271.
+    Erc1271SignatureValid,
+    /// The signer contract rejected the digest and opaque signature through ERC-1271.
+    Erc1271SignatureInvalid,
+    /// ERC-1271 validation could not produce a standard result.
+    Erc1271CallFailed,
     /// ERC-5267 fields do not reproduce the contract's domain separator.
     OnchainDomainSelfInconsistent,
     /// Records which on-chain domain probe produced usable evidence.
@@ -110,7 +116,7 @@ pub enum FindingCode {
 
 impl FindingCode {
     /// Every supported code, used to keep the public catalog complete.
-    pub const ALL: [Self; 26] = [
+    pub const ALL: [Self; 29] = [
         Self::DomainSeparatorMismatch,
         Self::DomainChainIdMismatch,
         Self::DomainNameMismatch,
@@ -131,6 +137,9 @@ impl FindingCode {
         Self::SigZeroS,
         Self::SignerMismatch,
         Self::SignerIsContract,
+        Self::Erc1271SignatureValid,
+        Self::Erc1271SignatureInvalid,
+        Self::Erc1271CallFailed,
         Self::OnchainDomainSelfInconsistent,
         Self::OnchainDomainSource,
         Self::BareStructHashSigned,
@@ -163,6 +172,9 @@ impl FindingCode {
             Self::SigZeroS => "SIG_ZERO_S",
             Self::SignerMismatch => "SIGNER_MISMATCH",
             Self::SignerIsContract => "SIGNER_IS_CONTRACT",
+            Self::Erc1271SignatureValid => "ERC1271_SIGNATURE_VALID",
+            Self::Erc1271SignatureInvalid => "ERC1271_SIGNATURE_INVALID",
+            Self::Erc1271CallFailed => "ERC1271_CALL_FAILED",
             Self::OnchainDomainSelfInconsistent => "ONCHAIN_DOMAIN_SELF_INCONSISTENT",
             Self::OnchainDomainSource => "ONCHAIN_DOMAIN_SOURCE",
             Self::BareStructHashSigned => "BARE_STRUCT_HASH_SIGNED",

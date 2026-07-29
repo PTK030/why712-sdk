@@ -4,8 +4,9 @@ use alloy_primitives::{Address, Bytes, U256};
 use serde::Serialize;
 
 use crate::{
-    DomainSeparator, Error, OnchainDomain, Result,
+    DomainSeparator, Erc1271Input, Erc1271Probe, Error, OnchainDomain, Result,
     eip712::domain::{decode_domain_separator, domain_separator_calldata},
+    erc1271::{decode_is_valid_signature, encode_is_valid_signature},
 };
 
 /// Minimal JSON-RPC port needed to enrich a diagnosis.
@@ -65,6 +66,9 @@ pub struct OnchainSnapshot {
     /// Runtime bytecode at the expected signer, when one was supplied.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub signer_code: Option<Bytes>,
+    /// ERC-1271 result when the expected signer is a contract and signature input was supplied.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub erc1271: Option<Erc1271Probe>,
     /// Structured or opaque on-chain domain evidence.
     pub domain: DomainProbe,
     /// Optional probe failures, in attempted order.
@@ -94,6 +98,7 @@ pub async fn acquire_onchain_snapshot<C: ChainClient>(
     client: &C,
     contract: Address,
     expected_signer: Option<Address>,
+    erc1271_input: Option<Erc1271Input>,
 ) -> Result<OnchainSnapshot> {
     let chain_id = client.eth_chain_id().await?;
     let contract_code = client.eth_get_code(contract).await?;
@@ -101,7 +106,6 @@ pub async fn acquire_onchain_snapshot<C: ChainClient>(
         Some(signer) => Some(client.eth_get_code(signer).await?),
         None => None,
     };
-
     let mut failures = Vec::new();
     let domain = match client
         .eth_call(contract, Bytes::from(OnchainDomain::calldata()))
@@ -120,15 +124,40 @@ pub async fn acquire_onchain_snapshot<C: ChainClient>(
             }
         }
     };
+    let erc1271 = match (expected_signer, signer_code.as_ref(), erc1271_input) {
+        (Some(signer), Some(code), Some(input)) if !code.is_empty() => {
+            Some(probe_erc1271(client, signer, input).await)
+        }
+        _ => None,
+    };
 
     Ok(OnchainSnapshot {
         chain_id,
         contract,
         contract_code,
         signer_code,
+        erc1271,
         domain,
         failures,
     })
+}
+
+async fn probe_erc1271<C: ChainClient>(
+    client: &C,
+    signer: Address,
+    input: Erc1271Input,
+) -> Erc1271Probe {
+    let calldata = encode_is_valid_signature(input.hash, input.signature);
+    match client.eth_call(signer, Bytes::from(calldata)).await {
+        Ok(data) => {
+            decode_is_valid_signature(&data).unwrap_or_else(|error| Erc1271Probe::Unavailable {
+                reason: error.to_string(),
+            })
+        }
+        Err(error) => Erc1271Probe::Unavailable {
+            reason: error.to_string(),
+        },
+    }
 }
 
 async fn optional_separator<C: ChainClient>(

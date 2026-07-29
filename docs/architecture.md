@@ -36,8 +36,11 @@ discarded. why712 does not guess a separator when the response contains unknown 
 extensions it does not implement.
 
 When an expected signer has non-empty runtime code, ECDSA recovery is not treated as proof of
-failure. The report emits `SIGNER_IS_CONTRACT` and remains inconclusive until full ERC-1271
-validation is available.
+failure. If signature input is available, acquisition calls
+`isValidSignature(bytes32,bytes)` on the signer with the canonical EIP-712 digest and the full
+opaque signature bytes. The pure diagnosis step then treats the standard `0x1626ba7e` return as
+a match, another ABI-valid `bytes4` as a mismatch, and a revert, transport failure, or malformed
+return as inconclusive. Smart-account signatures are not forced into a 64/65-byte ECDSA shape.
 
 ## Verified sources
 
@@ -47,7 +50,8 @@ Checked 2026-07-29:
   extension semantics, and requires returned values to describe the separator used for
   verification.
 - [ERC-1271](https://eips.ethereum.org/EIPS/eip-1271) defines
-  `isValidSignature(bytes32,bytes)` and the `0x1626ba7e` success value.
+  `isValidSignature(bytes32,bytes)`, the `0x1626ba7e` success value, a read-only call that may
+  invoke arbitrary validation logic, and no fixed gas limit for callers.
 - The pinned local source for Alloy 2.2.0 confirms `provider-http` plus
   `reqwest-rustls-tls` is the native rustls feature set. The adapter uses only public
   `RootProvider` and `Provider` APIs.

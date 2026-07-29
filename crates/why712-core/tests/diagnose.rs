@@ -2,8 +2,8 @@
 
 use alloy_primitives::{Address, Bytes, U256, address};
 use why712_core::{
-    DiagnoseRequest, DomainProbe, DomainSeparator, Error, FindingCode, OnchainSnapshot, Verdict,
-    diagnose_offline,
+    DiagnoseRequest, DomainProbe, DomainSeparator, Erc1271Probe, Error, FindingCode,
+    OnchainSnapshot, Verdict, diagnose_offline,
 };
 
 const MAIL: &str = include_str!("../fixtures/examples/valid-mail.json");
@@ -59,6 +59,7 @@ fn reports_onchain_separator_and_contract_signer_evidence() -> Result<(), Box<dy
         contract: address!("00000000000000000000000000000000000000aa"),
         contract_code: Bytes::from_static(&[0x60]),
         signer_code: Some(Bytes::from_static(&[0x60, 0x00])),
+        erc1271: None,
         domain: DomainProbe::SeparatorOnly {
             separator: DomainSeparator::from_b256([0x11; 32].into()),
         },
@@ -77,6 +78,58 @@ fn reports_onchain_separator_and_contract_signer_evidence() -> Result<(), Box<dy
             .iter()
             .any(|finding| finding.code == FindingCode::SignerMismatch)
     );
+    Ok(())
+}
+
+#[test]
+fn uses_erc1271_as_the_contract_signer_verdict() -> Result<(), Box<dyn std::error::Error>> {
+    let signer = address!("00000000000000000000000000000000000000bb");
+    let cases = [
+        (
+            Erc1271Probe::Valid,
+            Verdict::Match,
+            FindingCode::Erc1271SignatureValid,
+        ),
+        (
+            Erc1271Probe::Invalid {
+                returned: [0xff; 4].into(),
+            },
+            Verdict::Mismatch,
+            FindingCode::Erc1271SignatureInvalid,
+        ),
+        (
+            Erc1271Probe::Unavailable {
+                reason: "execution reverted".to_owned(),
+            },
+            Verdict::Inconclusive,
+            FindingCode::Erc1271CallFailed,
+        ),
+    ];
+    for (probe, verdict, code) in cases {
+        let mut request = request("0xaabbcc".to_owned(), Some(signer));
+        request.onchain_snapshot = Some(OnchainSnapshot {
+            chain_id: U256::from(1),
+            contract: address!("00000000000000000000000000000000000000aa"),
+            contract_code: Bytes::from_static(&[0x60]),
+            signer_code: Some(Bytes::from_static(&[0x60, 0x00])),
+            erc1271: Some(probe),
+            domain: DomainProbe::Unavailable,
+            failures: Vec::new(),
+        });
+
+        let report = diagnose_offline(&request)?;
+
+        assert_eq!(report.verdict, verdict);
+        assert_has_code(&report, FindingCode::SignerIsContract);
+        assert_has_code(&report, code);
+        assert_eq!(report.recovered_signer, None);
+        assert!(
+            !report
+                .findings
+                .iter()
+                .any(|finding| finding.code == FindingCode::SignerMismatch)
+        );
+    }
     Ok(())
 }
 

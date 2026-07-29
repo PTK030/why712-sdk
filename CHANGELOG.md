@@ -22,5 +22,7 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   fragment-only share links, and one-click examples from the shared fixture corpus.
 - Headless browser CI and GitHub Pages deployment from the same verified static artifact.
 - Responsive product introduction, project logo, and a real browser-recorded diagnostic demo.
+- ERC-1271 contract-signature execution with opaque signature bytes and explicit valid, invalid,
+  and unavailable outcomes.
 
 [Unreleased]: https://github.com/PTK030/why712/commits/main

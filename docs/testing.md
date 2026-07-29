@@ -183,9 +183,10 @@ LSB-first bitmap, canonical separator reconstruction, and refusal to guess exten
 Alloy adapter maps exactly `eth_chainId`, `eth_getCode`, and `eth_call`, including their hex
 response types. It does not depend on a public endpoint or live contract.
 
-Direct diagnosis tests prove on-chain separator mismatch, `SIGNER_IS_CONTRACT`, and
-`ONCHAIN_DOMAIN_SOURCE` behavior. A contract signer remains inconclusive until ERC-1271
-execution exists; the core does not emit a false EOA mismatch.
+Direct diagnosis tests prove on-chain separator mismatch, `SIGNER_IS_CONTRACT`,
+`ONCHAIN_DOMAIN_SOURCE`, and all three ERC-1271 outcomes. Transport tests pass a non-65-byte
+opaque signature to the signer contract and verify that the standard magic value yields a match,
+a non-magic `bytes4` yields a mismatch, and a revert or malformed return stays inconclusive.
 
 ## CLI
 

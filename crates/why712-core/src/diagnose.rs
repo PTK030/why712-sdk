@@ -3,8 +3,8 @@
 use serde_json::Value;
 
 use crate::{
-    Confidence, DiagnoseRequest, DomainProbe, Finding, FindingCode, HypothesisHit, HypothesisKind,
-    OnchainSnapshot, ParsedSignature, RecoveryEncoding, Report, Result, Severity,
+    Confidence, DiagnoseRequest, DomainProbe, Erc1271Probe, Finding, FindingCode, HypothesisHit,
+    HypothesisKind, OnchainSnapshot, ParsedSignature, RecoveryEncoding, Report, Result, Severity,
     TypedDataDocument, Verdict, search,
 };
 
@@ -19,11 +19,19 @@ const MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
 pub fn diagnose_offline(request: &DiagnoseRequest) -> Result<Report> {
     let document = TypedDataDocument::parse_json(&request.typed_data_json)?;
     let computed = document.compute()?;
-    let signature = request
-        .signature
-        .as_deref()
-        .map(ParsedSignature::parse_hex)
-        .transpose()?;
+    let signer_is_contract = request
+        .onchain_snapshot
+        .as_ref()
+        .is_some_and(OnchainSnapshot::signer_is_contract);
+    let signature = if signer_is_contract {
+        None
+    } else {
+        request
+            .signature
+            .as_deref()
+            .map(ParsedSignature::parse_hex)
+            .transpose()?
+    };
     let recovered = signature
         .as_ref()
         .and_then(|signature| signature.recover_address(&computed.digest));
@@ -50,10 +58,6 @@ pub fn diagnose_offline(request: &DiagnoseRequest) -> Result<Report> {
         });
     }
 
-    let signer_is_contract = request
-        .onchain_snapshot
-        .as_ref()
-        .is_some_and(OnchainSnapshot::signer_is_contract);
     let canonical_match = request
         .expected_signer
         .is_some_and(|expected| recovered == Some(expected));
@@ -98,17 +102,17 @@ pub fn diagnose_offline(request: &DiagnoseRequest) -> Result<Report> {
         )
     });
     let verdict = if signer_is_contract {
-        Verdict::Inconclusive
+        request
+            .onchain_snapshot
+            .as_ref()
+            .map_or(Verdict::Inconclusive, contract_signer_verdict)
     } else {
-        match (
-            signature.is_some(),
+        eoa_verdict(
+            signature.as_ref(),
             request.expected_signer,
             canonical_match,
-        ) {
-            (true, Some(_), true) if !has_signature_fault => Verdict::Match,
-            (true, Some(_), _) => Verdict::Mismatch,
-            _ => Verdict::Inconclusive,
-        }
+            has_signature_fault,
+        )
     };
     let mut report = Report::new(verdict, computed);
     report.expected_signer = request.expected_signer;
@@ -155,23 +159,7 @@ fn onchain_findings(
         evidence: source_evidence,
     });
 
-    if snapshot.signer_is_contract() {
-        findings.push(Finding {
-            code: FindingCode::SignerIsContract,
-            severity: Severity::Info,
-            confidence: Confidence::High,
-            message: "The expected signer has deployed runtime code.".to_owned(),
-            expected: Some("ERC-1271 validation".to_owned()),
-            actual: Some("contract account".to_owned()),
-            remediation: Some(
-                "Call isValidSignature(bytes32,bytes) on the signer contract.".to_owned(),
-            ),
-            evidence: snapshot
-                .signer_code
-                .as_ref()
-                .map(|code| format!("eth_getCode returned {} byte(s).", code.len())),
-        });
-    }
+    contract_signer_findings(snapshot, findings);
 
     let observed = match &snapshot.domain {
         DomainProbe::Erc5267 { domain, separator } => {
@@ -216,6 +204,92 @@ fn onchain_findings(
             ),
             evidence: Some(format!("Contract: {}", snapshot.contract)),
         });
+    }
+}
+
+fn contract_signer_verdict(snapshot: &OnchainSnapshot) -> Verdict {
+    match snapshot.erc1271.as_ref() {
+        Some(Erc1271Probe::Valid) => Verdict::Match,
+        Some(Erc1271Probe::Invalid { .. }) => Verdict::Mismatch,
+        Some(Erc1271Probe::Unavailable { .. }) | None => Verdict::Inconclusive,
+    }
+}
+
+fn eoa_verdict(
+    signature: Option<&ParsedSignature>,
+    expected_signer: Option<alloy_primitives::Address>,
+    canonical_match: bool,
+    has_signature_fault: bool,
+) -> Verdict {
+    match (signature, expected_signer, canonical_match) {
+        (Some(_), Some(_), true) if !has_signature_fault => Verdict::Match,
+        (Some(_), Some(_), _) => Verdict::Mismatch,
+        _ => Verdict::Inconclusive,
+    }
+}
+
+fn contract_signer_findings(snapshot: &OnchainSnapshot, findings: &mut Vec<Finding>) {
+    if !snapshot.signer_is_contract() {
+        return;
+    }
+    findings.push(Finding {
+        code: FindingCode::SignerIsContract,
+        severity: Severity::Info,
+        confidence: Confidence::High,
+        message: "The expected signer has deployed runtime code.".to_owned(),
+        expected: Some("ERC-1271 validation".to_owned()),
+        actual: Some("contract account".to_owned()),
+        remediation: snapshot.erc1271.is_none().then(|| {
+            "Supply a signature so isValidSignature(bytes32,bytes) can be called.".to_owned()
+        }),
+        evidence: snapshot
+            .signer_code
+            .as_ref()
+            .map(|code| format!("eth_getCode returned {} byte(s).", code.len())),
+    });
+    let magic = format!("0x{}", hex::encode(crate::ERC1271_MAGIC_VALUE));
+    match &snapshot.erc1271 {
+        Some(Erc1271Probe::Valid) => findings.push(Finding {
+            code: FindingCode::Erc1271SignatureValid,
+            severity: Severity::Info,
+            confidence: Confidence::Certain,
+            message: "The signer contract accepted the digest and signature.".to_owned(),
+            expected: Some(magic.clone()),
+            actual: Some(magic),
+            remediation: None,
+            evidence: Some(
+                "isValidSignature(bytes32,bytes) returned the ERC-1271 magic value.".to_owned(),
+            ),
+        }),
+        Some(Erc1271Probe::Invalid { returned }) => findings.push(Finding {
+            code: FindingCode::Erc1271SignatureInvalid,
+            severity: Severity::Error,
+            confidence: Confidence::Certain,
+            message: "The signer contract rejected the digest and signature.".to_owned(),
+            expected: Some(magic),
+            actual: Some(format!("0x{}", hex::encode(returned))),
+            remediation: Some(
+                "Use the digest, signature scheme, and authorization state expected by the signer contract."
+                    .to_owned(),
+            ),
+            evidence: Some(
+                "isValidSignature(bytes32,bytes) returned a non-magic bytes4 value.".to_owned(),
+            ),
+        }),
+        Some(Erc1271Probe::Unavailable { reason }) => findings.push(Finding {
+            code: FindingCode::Erc1271CallFailed,
+            severity: Severity::Warning,
+            confidence: Confidence::High,
+            message: "The signer contract did not produce a usable ERC-1271 result.".to_owned(),
+            expected: Some(magic),
+            actual: None,
+            remediation: Some(
+                "Inspect the signer implementation, RPC response, and current authorization state."
+                    .to_owned(),
+            ),
+            evidence: Some(reason.clone()),
+        }),
+        None => {}
     }
 }
 

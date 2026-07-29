@@ -16,7 +16,7 @@ use anyhow::{Context, Result, bail};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use serde::Deserialize;
 use why712_core::{
-    DiagnoseRequest, DomainProbe, FindingCode, HypothesisContext, OnchainSnapshot,
+    DiagnoseRequest, DomainProbe, Erc1271Input, FindingCode, HypothesisContext, OnchainSnapshot,
     TypedDataDocument, Verdict, acquire_onchain_snapshot, diagnose_offline, render_markdown,
     rpc::AlloyChainClient,
 };
@@ -161,7 +161,16 @@ async fn check(args: CheckArgs) -> Result<ExitCode> {
     let (onchain_snapshot, onchain_failure) = if !args.offline
         && let (Some(endpoint), Some(contract)) = (&args.rpc, args.contract)
     {
-        acquire_or_warn(endpoint, contract, args.signer).await
+        let erc1271_input = match (args.signer, args.signature.as_deref()) {
+            (Some(_), Some(signature)) => {
+                let digest = TypedDataDocument::parse_json(&typed_data_json)?
+                    .compute()?
+                    .digest;
+                Some(Erc1271Input::from_signature_hex(digest, signature)?)
+            }
+            _ => None,
+        };
+        acquire_or_warn(endpoint, contract, args.signer, erc1271_input).await
     } else {
         (None, None)
     };
@@ -195,9 +204,10 @@ async fn acquire_or_warn(
     endpoint: &str,
     contract: Address,
     signer: Option<Address>,
+    erc1271_input: Option<Erc1271Input>,
 ) -> (Option<OnchainSnapshot>, Option<String>) {
     let result = match AlloyChainClient::connect(endpoint).await {
-        Ok(client) => acquire_onchain_snapshot(&client, contract, signer).await,
+        Ok(client) => acquire_onchain_snapshot(&client, contract, signer, erc1271_input).await,
         Err(error) => Err(error),
     };
     match result {

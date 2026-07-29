@@ -98,8 +98,9 @@ fallback is never silent.
 ## What the tool does not do
 
 why712 does not sign messages, accept private keys, submit transactions, operate a wallet, or
-support non-EVM chains. ERC-1271 contract accounts are detected in the current milestone; full
-`isValidSignature` execution is planned for the hardening milestone.
+support non-EVM chains. For an expected contract signer, RPC mode passes the canonical digest
+and complete opaque signature to ERC-1271 `isValidSignature(bytes32,bytes)`; it never assumes a
+smart-account signature has an ECDSA layout.
 
 Never provide a private key or seed phrase. Typed data and signatures may themselves contain
 sensitive application data; review a report before sharing it.
