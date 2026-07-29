@@ -1,0 +1,15 @@
+# Pre-commit checks. A red CI run caused by formatting is a wasted round trip.
+#
+# Install once with `lefthook install`. If you don't have Rust natively, point the commands at
+# scripts/dev-cargo.sh instead — see docs/development.md.
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: fmt
+      glob: "*.rs"
+      run: cargo fmt --all -- --check
+
+    - name: clippy
+      glob: "*.rs"
+      run: cargo clippy --workspace --all-targets --all-features -- -D warnings

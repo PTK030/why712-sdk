@@ -1,0 +1,4 @@
+interface:
+  display_name: "why712 Workflow"
+  short_description: "Continue why712 work with verified context"
+  default_prompt: "Use $why712-workflow to continue the next verified why712 implementation step."

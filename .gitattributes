@@ -1,0 +1,11 @@
+# Normalize line endings on checkin. Snapshot tests compare multi-line report output, and a
+# CRLF checkout on the Windows CI runner would fail them for reasons that have nothing to do
+# with the code. See .vault/OPEN_QUESTIONS.md Q-006.
+* text=auto eol=lf
+
+# Shell scripts must keep LF even on Windows checkouts — a CRLF shebang line is not executable.
+*.sh text eol=lf
+
+*.png binary
+*.gif binary
+*.svg text

@@ -1,0 +1,11 @@
+target/
+web/pkg/
+crates/why712-wasm/pkg/
+.git/
+.github/
+.vault/
+IMPLEMENTATION_PLAN.md
+assets/
+docs/
+*.md
+!README.md
