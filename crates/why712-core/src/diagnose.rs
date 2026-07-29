@@ -34,6 +34,20 @@ pub fn diagnose_offline(request: &DiagnoseRequest) -> Result<Report> {
     }
     if let Some(snapshot) = &request.onchain_snapshot {
         onchain_findings(snapshot, &computed.domain_separator, &mut findings);
+    } else if let Some(failure) = &request.onchain_failure {
+        findings.push(Finding {
+            code: FindingCode::OnchainDomainSource,
+            severity: Severity::Info,
+            confidence: Confidence::High,
+            message: "RPC enrichment failed; diagnosis used offline evidence.".to_owned(),
+            expected: None,
+            actual: None,
+            remediation: Some(
+                "Check the endpoint and browser CORS policy, or continue explicitly offline."
+                    .to_owned(),
+            ),
+            evidence: Some(failure.clone()),
+        });
     }
 
     let signer_is_contract = request

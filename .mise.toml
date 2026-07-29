@@ -1,0 +1,3 @@
+[tools]
+node = "24.16.0"
+"cargo:wasm-pack" = { version = "0.15.0", locked = true }

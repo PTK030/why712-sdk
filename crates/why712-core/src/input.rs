@@ -17,4 +17,6 @@ pub struct DiagnoseRequest {
     pub hypothesis_context: HypothesisContext,
     /// Optional plain chain observations acquired before deterministic diagnosis.
     pub onchain_snapshot: Option<OnchainSnapshot>,
+    /// RPC acquisition failure retained when diagnosis deliberately falls back offline.
+    pub onchain_failure: Option<String>,
 }

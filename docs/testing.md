@@ -198,6 +198,24 @@ execution exists; the core does not emit a false EOA mismatch.
 - `--offline` overriding `WHY712_RPC_URL`;
 - stable digest and finding-code output from shared fixtures.
 
+## WASM browser contract
+
+`crates/why712-wasm/tests/web.rs` runs through `wasm-bindgen-test` in headless Chrome. It proves:
+
+- the canonical Mail fixture returns the same `MATCH` verdict as the native integration test;
+- synchronous and asynchronous no-RPC bindings agree;
+- reports and the shared example manifest cross the boundary as plain JavaScript objects, not
+  ES2015 `Map` values;
+- generated report fields use the documented camelCase shape;
+- the example and Markdown helper bindings return usable JavaScript values.
+
+The crate also builds its own browser `fetch` transport for `eth_call`, `eth_chainId`, and
+`eth_getCode`; a CORS or JSON-RPC failure becomes `ONCHAIN_DOMAIN_SOURCE` evidence and does not
+discard the offline report. Generated `pkg/` files are build artifacts and remain ignored.
+
+See `docs/development.md` for the exact `wasm-pack` commands and the Windows ChromeDriver
+version-selection caveat.
+
 ## Required checks
 
 Run these after every milestone:

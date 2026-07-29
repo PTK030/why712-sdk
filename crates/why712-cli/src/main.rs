@@ -158,12 +158,12 @@ async fn check(args: CheckArgs) -> Result<ExitCode> {
         hypothesis_context.verifying_contracts.push(contract);
     }
 
-    let onchain_snapshot = if !args.offline
+    let (onchain_snapshot, onchain_failure) = if !args.offline
         && let (Some(endpoint), Some(contract)) = (&args.rpc, args.contract)
     {
         acquire_or_warn(endpoint, contract, args.signer).await
     } else {
-        None
+        (None, None)
     };
     if let Some(snapshot) = &onchain_snapshot {
         enrich_hypotheses(snapshot, &mut hypothesis_context);
@@ -175,6 +175,7 @@ async fn check(args: CheckArgs) -> Result<ExitCode> {
         expected_signer: args.signer,
         hypothesis_context,
         onchain_snapshot,
+        onchain_failure,
     };
     let report = diagnose_offline(&request)?;
     match args.format {
@@ -194,19 +195,20 @@ async fn acquire_or_warn(
     endpoint: &str,
     contract: Address,
     signer: Option<Address>,
-) -> Option<OnchainSnapshot> {
+) -> (Option<OnchainSnapshot>, Option<String>) {
     let result = match AlloyChainClient::connect(endpoint).await {
         Ok(client) => acquire_onchain_snapshot(&client, contract, signer).await,
         Err(error) => Err(error),
     };
     match result {
-        Ok(snapshot) => Some(snapshot),
+        Ok(snapshot) => (Some(snapshot), None),
         Err(error) => {
+            let failure = error.to_string();
             let _ = writeln!(
                 anstream::stderr().lock(),
                 "warning: RPC enrichment failed; continuing offline: {error}"
             );
-            None
+            (None, Some(failure))
         }
     }
 }

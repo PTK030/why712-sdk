@@ -16,6 +16,13 @@ rustup target list --installed
 On Windows, the MSVC target also needs the Visual Studio C++ linker. A working native Windows
 setup has been verified for this repository.
 
+`.mise.toml` pins the supporting web toolchain: Node.js 24.16.0 LTS and `wasm-pack` 0.15.0.
+Install both with `mise install`, or install the exact WASM tool directly:
+
+```bash
+cargo install wasm-pack --version 0.15.0 --locked
+```
+
 ## Container fallback
 
 If Rust or the native linker is unavailable, use the pinned development image:
@@ -63,6 +70,30 @@ cargo check -p why712-core --target wasm32-unknown-unknown
 The last check uses the default core feature set. It proves the optional native provider stack
 has not leaked into the browser dependency graph.
 
+## WASM bindings and browser tests
+
+Generate the ignored browser package:
+
+```bash
+wasm-pack build crates/why712-wasm --target web --out-dir pkg --out-name why712_wasm
+```
+
+Run the JavaScript contract tests in headless Chrome:
+
+```bash
+wasm-pack test --headless --chrome crates/why712-wasm
+```
+
+`wasm-pack` 0.15.0 resolves the newest stable ChromeDriver without inspecting the installed
+Chrome version on Windows. If the browser has not updated to the same major version, select a
+matching driver through the official Chrome for Testing metadata and pass it explicitly:
+
+```bash
+wasm-pack test --headless --chrome --chromedriver /path/to/chromedriver crates/why712-wasm
+```
+
+ChromeDriver must match Chrome's `MAJOR.MINOR.BUILD`; patch numbers may differ.
+
 ## Repository knowledge
 
 `docs/` is stable public knowledge. `IMPLEMENTATION_PLAN.md` and `.vault/` are local working
@@ -70,6 +101,3 @@ state and are intentionally gitignored. Agents continuing project work must foll
 `AGENTS.md` and `.agents/skills/why712-workflow/SKILL.md`: inspect pinned dependency source,
 consult current primary documentation when uncertain, and preserve reusable workflows as
 focused project skills.
-
-The WASM demo and `wasm-pack` workflow are not implemented yet. Do not add ad hoc browser build
-steps before the corresponding implementation-plan milestone.

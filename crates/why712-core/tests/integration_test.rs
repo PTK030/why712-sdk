@@ -62,6 +62,7 @@ fn diagnoses_the_entire_shared_corpus() -> Result<(), Box<dyn std::error::Error>
                     .collect::<Result<_, _>>()?,
             },
             onchain_snapshot: None,
+            onchain_failure: None,
         };
         let report = diagnose_offline(&request)?;
 

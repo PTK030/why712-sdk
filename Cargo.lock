@@ -4587,8 +4587,10 @@ dependencies = [
 name = "why712-wasm"
 version = "0.1.0"
 dependencies = [
+ "alloy-primitives",
  "console_error_panic_hook",
  "js-sys",
+ "serde",
  "serde-wasm-bindgen",
  "serde_json",
  "wasm-bindgen",
