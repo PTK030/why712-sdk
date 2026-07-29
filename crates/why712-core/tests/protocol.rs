@@ -10,6 +10,8 @@ use why712_core::{
 };
 
 const PERMIT: &str = include_str!("../fixtures/protocol/eip2612-stale-nonce.json");
+const VALID_MAIL: &str = include_str!("../fixtures/examples/valid-mail.json");
+const VALID_MAIL_SIGNATURE: &str = "0x4355c47d63924e8a72e509b65029052eb6c299d53a04e167c5775fd466751c9d07299936d304c153f6443dfa05f40ff007d72911b6f72307f996231605b915621c";
 
 #[test]
 fn normalizes_wallet_request_without_losing_the_typed_document() {
@@ -121,6 +123,31 @@ fn missing_protocol_state_is_inconclusive_not_a_match() {
     let report = diagnose_offline(&request).unwrap();
     assert_eq!(report.verdict, Verdict::Inconclusive);
     assert_has(&report, FindingCode::ProtocolStateUnavailable);
+}
+
+#[test]
+fn unavailable_simulation_overrides_an_otherwise_matching_signature() {
+    let request = DiagnoseRequest {
+        typed_data_json: VALID_MAIL.to_owned(),
+        signature: Some(VALID_MAIL_SIGNATURE.to_owned()),
+        expected_signer: Some(address!("cd2a3d9f938e13cd947ec05abc7fe734df8dd826")),
+        onchain_snapshot: Some(snapshot(ProtocolSnapshot::Eip2612(Eip2612Snapshot {
+            owner: address!("00000000000000000000000000000000000000bb"),
+            signed_nonce: U256::from(7),
+            onchain_nonce: Some(U256::from(7)),
+            state_failure: None,
+            deadline: U256::from(2_000_000_000_u64),
+            block_timestamp: Some(1_700_000_100),
+            simulation: Some(SimulationResult::Unavailable {
+                reason: "archive state unavailable".to_owned(),
+            }),
+        }))),
+        ..DiagnoseRequest::default()
+    };
+
+    let report = diagnose_offline(&request).unwrap();
+    assert_eq!(report.verdict, Verdict::Inconclusive);
+    assert_has(&report, FindingCode::PermitCallReverted);
 }
 
 fn snapshot(protocol: ProtocolSnapshot) -> OnchainSnapshot {

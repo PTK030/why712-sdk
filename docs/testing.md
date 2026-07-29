@@ -192,7 +192,9 @@ a non-magic `bytes4` yields a mismatch, and a revert or malformed return stays i
 deadlines, read-only permit reverts, Permit2 bitmap reuse, and ERC-6492 detection before ECDSA
 length parsing. Protocol fixtures inject plain snapshots so expected results never depend on a
 live endpoint or wall clock. A missing nonce or historical state produces
-`PROTOCOL_STATE_UNAVAILABLE` and an inconclusive verdict.
+`PROTOCOL_STATE_UNAVAILABLE` and an inconclusive verdict. An unavailable protocol simulation
+also overrides an otherwise matching local signature to `INCONCLUSIVE`, preventing an RPC or
+archive-node limitation from becoming a false success.
 
 `fixtures/protocol/eip2612-stale-nonce.json` uses the exact ERC-2612 type from the specification
 and records the public ethers.js discussion that motivated the nonce/deadline regression. Its

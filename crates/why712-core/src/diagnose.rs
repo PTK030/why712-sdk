@@ -142,6 +142,10 @@ pub fn diagnose_offline(request: &DiagnoseRequest) -> Result<Report> {
     } else if findings
         .iter()
         .any(|finding| finding.code == FindingCode::ProtocolStateUnavailable)
+        || request
+            .onchain_snapshot
+            .as_ref()
+            .is_some_and(protocol_simulation_is_unavailable)
     {
         verdict = Verdict::Inconclusive;
     }
@@ -177,6 +181,21 @@ pub fn diagnose_offline(request: &DiagnoseRequest) -> Result<Report> {
             .and_then(|snapshot| snapshot.protocol.clone()),
     });
     Ok(report)
+}
+
+fn protocol_simulation_is_unavailable(snapshot: &OnchainSnapshot) -> bool {
+    match snapshot.protocol.as_ref() {
+        Some(ProtocolSnapshot::Eip2612(state)) => {
+            matches!(state.simulation, Some(SimulationResult::Unavailable { .. }))
+        }
+        Some(ProtocolSnapshot::Permit2Allowance(state)) => {
+            matches!(state.simulation, Some(SimulationResult::Unavailable { .. }))
+        }
+        Some(ProtocolSnapshot::Permit2SignatureTransfer(state)) => {
+            matches!(state.simulation, Some(SimulationResult::Unavailable { .. }))
+        }
+        None => false,
+    }
 }
 
 fn erc6492_findings(snapshot: Option<&OnchainSnapshot>, findings: &mut Vec<Finding>) {

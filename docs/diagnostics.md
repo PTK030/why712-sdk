@@ -176,6 +176,8 @@ actual token owner.
 
 A read-only simulation of the ERC-2612 `permit` call reverted or was unavailable. Resolve the
 state and signature findings, or use an RPC that supports the requested historical block.
+An unavailable call keeps the overall verdict `INCONCLUSIVE`; it is not treated as evidence
+that the permit is invalid.
 
 ## PERMIT_CALL_SUCCEEDED
 
@@ -204,7 +206,8 @@ with a future allowance expiration.
 ## PERMIT2_CALL_REVERTED
 
 A read-only Permit2 verification call reverted or was unavailable. Resolve the accompanying
-state findings or use an RPC with the required historical state.
+state findings or use an RPC with the required historical state. An unavailable call keeps the
+overall verdict `INCONCLUSIVE`; it is not treated as evidence that the permit is invalid.
 
 ## PERMIT2_CALL_SUCCEEDED
 
