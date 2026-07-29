@@ -7,6 +7,8 @@ on:
     branches: [main]
   merge_group:
   workflow_dispatch:
+  schedule:
+    - cron: "17 5 * * 1"
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -44,6 +46,7 @@ jobs:
               - 'Cargo.lock'
               - 'rust-toolchain.toml'
               - 'rustfmt.toml'
+              - 'deny.toml'
               - '.github/workflows/ci.yml'
 
   fmt:
@@ -107,3 +110,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
       - run: cargo build --workspace --release
+
+  dependency-policy:
+    name: dependency policy
+    needs: changes
+    if: github.event_name == 'schedule' || needs.changes.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: EmbarkStudios/cargo-deny-action@c3bbe7e4e3f7baeee1a3dd9aec0a3b2aded580fb # v2.1.1 / cargo-deny 0.20.2
+        with:
+          arguments: --all-features
+          command-arguments: advisories bans licenses sources

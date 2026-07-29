@@ -96,3 +96,19 @@ This is not stylistic. It is what lets the CLI and the browser run the same code
 every diagnosis reproducible from its inputs alone, and what keeps the crate compiling for
 `wasm32-unknown-unknown`. A dependency that breaks the wasm build breaks the demo page, which
 is how anyone finds this project at all.
+
+## Dependency policy
+
+`deny.toml` is the executable dependency boundary. CI checks the complete native and WASM graph,
+including development and build dependencies, for:
+
+- RustSec advisories, yanked releases, and unsound dependencies;
+- an explicit reviewed-license allowlist;
+- wildcard version requirements and unexpected Git or registry sources;
+- accidental reintroduction of OpenSSL/native-tls after the deliberate rustls choice.
+
+Duplicate transitive versions are reported but do not fail CI: Alloy's graph contains several
+legitimate version families, so a blanket denial would turn upstream release cadence into local
+exceptions. Direct workspace dependency duplication and unused workspace declarations do fail.
+Dependabot checks Cargo and pinned GitHub Actions weekly; its pull requests still pass the same
+policy and full quality gates before merge.
