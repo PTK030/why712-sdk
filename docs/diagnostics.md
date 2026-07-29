@@ -107,6 +107,12 @@ recovery. Call `isValidSignature(bytes32,bytes)` on that contract.
 The fields returned by ERC-5267 do not reproduce the contract's `DOMAIN_SEPARATOR()`. Treat the
 contract or proxy configuration as inconsistent and inspect its domain implementation.
 
+## ONCHAIN_DOMAIN_SOURCE
+
+Records whether chain enrichment used structured ERC-5267 metadata, only the opaque
+`DOMAIN_SEPARATOR()`, or neither probe. Failed optional probes remain in the evidence so a
+fallback is explicit and reproducible rather than silently changing diagnostic confidence.
+
 ## BARE_STRUCT_HASH_SIGNED
 
 The signature verifies over the primary `hashStruct` without the domain and `0x1901` envelope.

@@ -23,6 +23,8 @@ anstream.workspace = true
 owo-colors.workspace = true
 anyhow.workspace = true
 serde_json.workspace = true
+serde.workspace = true
+alloy-primitives.workspace = true
 tokio = { workspace = true, features = ["rt", "macros"] }
 
 [dev-dependencies]

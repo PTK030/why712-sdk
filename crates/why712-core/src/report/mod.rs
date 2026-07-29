@@ -96,6 +96,8 @@ pub enum FindingCode {
     SignerIsContract,
     /// ERC-5267 fields do not reproduce the contract's domain separator.
     OnchainDomainSelfInconsistent,
+    /// Records which on-chain domain probe produced usable evidence.
+    OnchainDomainSource,
     /// The signature was made over the bare primary struct hash.
     BareStructHashSigned,
     /// The signature omitted the EIP-712 `0x1901` prefix.
@@ -108,7 +110,7 @@ pub enum FindingCode {
 
 impl FindingCode {
     /// Every supported code, used to keep the public catalog complete.
-    pub const ALL: [Self; 25] = [
+    pub const ALL: [Self; 26] = [
         Self::DomainSeparatorMismatch,
         Self::DomainChainIdMismatch,
         Self::DomainNameMismatch,
@@ -130,6 +132,7 @@ impl FindingCode {
         Self::SignerMismatch,
         Self::SignerIsContract,
         Self::OnchainDomainSelfInconsistent,
+        Self::OnchainDomainSource,
         Self::BareStructHashSigned,
         Self::Eip712PrefixMissing,
         Self::PersonalSignDetected,
@@ -161,6 +164,7 @@ impl FindingCode {
             Self::SignerMismatch => "SIGNER_MISMATCH",
             Self::SignerIsContract => "SIGNER_IS_CONTRACT",
             Self::OnchainDomainSelfInconsistent => "ONCHAIN_DOMAIN_SELF_INCONSISTENT",
+            Self::OnchainDomainSource => "ONCHAIN_DOMAIN_SOURCE",
             Self::BareStructHashSigned => "BARE_STRUCT_HASH_SIGNED",
             Self::Eip712PrefixMissing => "EIP712_PREFIX_MISSING",
             Self::PersonalSignDetected => "PERSONAL_SIGN_DETECTED",

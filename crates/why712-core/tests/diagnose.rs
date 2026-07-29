@@ -68,6 +68,7 @@ fn reports_onchain_separator_and_contract_signer_evidence() -> Result<(), Box<dy
     let report = diagnose_offline(&request)?;
 
     assert_eq!(report.verdict, Verdict::Inconclusive);
+    assert_has_code(&report, FindingCode::OnchainDomainSource);
     assert_has_code(&report, FindingCode::SignerIsContract);
     assert_has_code(&report, FindingCode::DomainSeparatorMismatch);
     assert!(

@@ -4552,12 +4552,14 @@ dependencies = [
 name = "why712-cli"
 version = "0.1.0"
 dependencies = [
+ "alloy-primitives",
  "anstream",
  "anyhow",
  "assert_cmd",
  "clap",
  "owo-colors",
  "predicates",
+ "serde",
  "serde_json",
  "tokio",
  "why712-core",

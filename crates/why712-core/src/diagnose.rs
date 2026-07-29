@@ -108,6 +108,39 @@ fn onchain_findings(
     local_separator: &crate::DomainSeparator,
     findings: &mut Vec<Finding>,
 ) {
+    let (source_message, source_evidence) = match &snapshot.domain {
+        DomainProbe::Erc5267 {
+            separator: Some(_), ..
+        } => (
+            "The contract domain came from ERC-5267 and was cross-checked with DOMAIN_SEPARATOR().",
+            probe_evidence(snapshot),
+        ),
+        DomainProbe::Erc5267 {
+            separator: None, ..
+        } => (
+            "The contract domain came from ERC-5267; DOMAIN_SEPARATOR() was unavailable.",
+            probe_evidence(snapshot),
+        ),
+        DomainProbe::SeparatorOnly { .. } => (
+            "ERC-5267 was unavailable; the contract domain came from DOMAIN_SEPARATOR().",
+            probe_evidence(snapshot),
+        ),
+        DomainProbe::Unavailable => (
+            "Neither standard domain probe was available; diagnosis used offline evidence.",
+            probe_evidence(snapshot),
+        ),
+    };
+    findings.push(Finding {
+        code: FindingCode::OnchainDomainSource,
+        severity: Severity::Info,
+        confidence: Confidence::High,
+        message: source_message.to_owned(),
+        expected: None,
+        actual: None,
+        remediation: None,
+        evidence: source_evidence,
+    });
+
     if snapshot.signer_is_contract() {
         findings.push(Finding {
             code: FindingCode::SignerIsContract,
@@ -170,6 +203,17 @@ fn onchain_findings(
             evidence: Some(format!("Contract: {}", snapshot.contract)),
         });
     }
+}
+
+fn probe_evidence(snapshot: &OnchainSnapshot) -> Option<String> {
+    (!snapshot.failures.is_empty()).then(|| {
+        snapshot
+            .failures
+            .iter()
+            .map(|failure| format!("{}: {}", failure.method, failure.reason))
+            .collect::<Vec<_>>()
+            .join("; ")
+    })
 }
 
 fn signature_findings(signature: &ParsedSignature, findings: &mut Vec<Finding>) {

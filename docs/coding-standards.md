@@ -88,8 +88,9 @@ Beyond that:
 
 ## Determinism
 
-`why712-core` performs no I/O: no network, no filesystem, no clock, no randomness. Chain data
-arrives as a snapshot the caller supplies.
+The diagnosis path performs no I/O: no network, filesystem, clock, or randomness. Chain data
+arrives as a snapshot the caller supplies. The optional native adapter in `rpc.rs` acquires that
+snapshot before diagnosis and is excluded from the default and wasm dependency graphs.
 
 This is not stylistic. It is what lets the CLI and the browser run the same code, what makes
 every diagnosis reproducible from its inputs alone, and what keeps the crate compiling for
