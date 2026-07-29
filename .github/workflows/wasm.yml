@@ -66,7 +66,10 @@ jobs:
 
   deploy:
     name: deploy GitHub Pages
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      github.event_name != 'pull_request' &&
+      github.event.repository.private == false
     needs: build
     runs-on: ubuntu-latest
     permissions:
