@@ -3,8 +3,12 @@
 <h1 align="center">why712</h1>
 
 <p align="center">
+  English · <a href="README.pl.md">Polski</a> · <a href="README.zh-CN.md">简体中文</a> · <a href="README.ja.md">日本語</a>
+</p>
+
+<p align="center">
   <a href="https://github.com/PTK030/why712/actions/workflows/ci.yml"><img src="https://github.com/PTK030/why712/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-blue.svg" alt="PolyForm Noncommercial 1.0.0"></a>
 </p>
 
 <p align="center">Find out why an EIP-712 signature does not verify.</p>
@@ -138,4 +142,7 @@ required checks.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+Source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE): permitted
+noncommercial use is free, while commercial use requires a separate paid license. See
+[commercial licensing](COMMERCIAL-LICENSE.md) for the boundary, contact route, and the effect
+of the previous MIT license.

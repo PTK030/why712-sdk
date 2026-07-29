@@ -1,0 +1,4 @@
+interface:
+  display_name: "Add why712 diagnostic"
+  short_description: "Add findings across core, docs, fixtures, and UIs"
+  default_prompt: "Use $add-diagnostic to add or update a why712 diagnostic and verify every required contract."

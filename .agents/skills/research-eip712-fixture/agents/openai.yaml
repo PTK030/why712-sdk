@@ -1,0 +1,4 @@
+interface:
+  display_name: "Research EIP-712 fixture"
+  short_description: "Create independently verified EIP-712 fixtures"
+  default_prompt: "Use $research-eip712-fixture to research and add a reproducible fixture from primary sources."

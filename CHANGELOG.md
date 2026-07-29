@@ -7,6 +7,14 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Switched new versions from MIT to PolyForm Noncommercial 1.0.0, with separate paid
+  commercial licensing.
+- Added Polish, Simplified Chinese, and Japanese README translations.
+- Added focused agent skills for diagnostics, fixture research, and releases.
+- Improved container build caching, GHCR usage guidance, and superseded-main-run cancellation.
+
 ### Added
 
 - Pure EIP-712 parsing and intermediate computation through Alloy.

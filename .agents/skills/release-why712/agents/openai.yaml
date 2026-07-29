@@ -1,0 +1,4 @@
+interface:
+  display_name: "Release why712"
+  short_description: "Prepare, publish, and verify a why712 release"
+  default_prompt: "Use $release-why712 to cut and babysit a why712 release using the repository playbook."

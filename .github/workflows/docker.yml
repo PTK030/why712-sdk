@@ -13,6 +13,8 @@ on:
       - "Cargo.toml"
       - "Cargo.lock"
       - "rust-toolchain.toml"
+      - "LICENSE"
+      - "COMMERCIAL-LICENSE.md"
       - ".github/workflows/docker.yml"
   pull_request:
     branches: [main]
@@ -25,6 +27,8 @@ on:
       - "Cargo.toml"
       - "Cargo.lock"
       - "rust-toolchain.toml"
+      - "LICENSE"
+      - "COMMERCIAL-LICENSE.md"
       - ".github/workflows/docker.yml"
   merge_group:
   workflow_dispatch:
@@ -34,7 +38,7 @@ permissions:
 
 concurrency:
   group: container-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || github.ref == 'refs/heads/main' }}
 
 env:
   IMAGE_NAME: ghcr.io/ptk030/why712

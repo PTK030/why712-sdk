@@ -15,7 +15,24 @@ docker run --rm why712:local --help
 
 The builder uses the pinned Rust 1.97 toolchain and `cargo build --locked`. The runtime is
 `gcr.io/distroless/cc-debian12:nonroot`; its entrypoint uses JSON/vector form because distroless
-does not contain a shell. The native RPC graph uses Rustls, not OpenSSL.
+does not contain a shell. The native RPC graph uses Rustls, not OpenSSL. BuildKit cache mounts
+retain Cargo downloads and compiled artifacts between builds without copying them into the
+runtime image.
+
+## Pull from GHCR
+
+Images published from `main` and release tags are multi-platform (`linux/amd64` and
+`linux/arm64`) and carry provenance plus an SBOM:
+
+```bash
+docker pull ghcr.io/ptk030/why712:latest
+docker run --rm --network none --read-only ghcr.io/ptk030/why712:latest examples
+docker buildx imagetools inspect ghcr.io/ptk030/why712:latest
+```
+
+Use a version tag for releases or a `sha-...` tag for reproducibility. For strict supply-chain
+pinning, deploy the digest shown by `imagetools inspect`, for example
+`ghcr.io/ptk030/why712@sha256:...`.
 
 ## Input and output contract
 

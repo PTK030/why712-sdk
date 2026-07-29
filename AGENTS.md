@@ -69,8 +69,10 @@ one-off facts or rules already clear in `AGENTS.md` or `docs/` into skills.
 
 ## Language
 
-Everything committed to this repository is in English, without exception: docs, comments,
-identifiers, CLI output, finding text, the demo UI, templates, and commit messages.
+English is canonical for code, docs, comments, identifiers, CLI output, finding text, the demo
+UI, templates, and commit messages. Deliberate README translations are the only exception:
+name them `README.<locale>.md`, keep the language switcher synchronized, and update them when a
+canonical README change affects users.
 
 ## Quick start
 
