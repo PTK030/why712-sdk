@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/logo.svg" width="88" height="88" alt="why712 logo"></p>
+
 <h1 align="center">why712</h1>
 
 <p align="center">
@@ -7,8 +9,12 @@
 
 <p align="center">Find out why an EIP-712 signature does not verify.</p>
 
-> **Pre-release:** the native core, CLI, and local browser demo are functional. The hosted demo,
-> packaged binaries, and production Docker image belong to later milestones.
+<p align="center"><img src="assets/demo.gif" alt="why712 diagnosing a wrong EIP-712 chain ID" width="100%"></p>
+
+### [Try it in your browser](https://ptk030.github.io/why712/) — no install, no backend
+
+> **Pre-release:** the native core, CLI, browser demo, and Pages workflow are functional.
+> Packaged binaries and the production Docker image belong to the next milestone.
 
 why712 computes every EIP-712 intermediate, recovers the signer, and searches a bounded set of
 common signing mistakes. When an RPC endpoint is supplied, it reads the contract's actual domain
