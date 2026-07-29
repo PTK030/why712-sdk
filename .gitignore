@@ -1,0 +1,24 @@
+# Rust
+/target/
+**/*.rs.bk
+*.pdb
+
+# wasm-pack output
+/web/pkg/
+/crates/why712-wasm/pkg/
+
+# Insta snapshot review artifacts
+**/*.snap.new
+**/*.pending-snap
+
+# Local working context — not part of the published project.
+# See AGENTS.md ("Local working context") for what these are.
+/IMPLEMENTATION_PLAN.md
+/.vault/
+
+# Editors / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
