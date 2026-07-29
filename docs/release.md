@@ -6,8 +6,34 @@ why712 follows semantic versioning while pre-1.0 minor versions identify product
 - `0.2.x`: WASM bindings and browser demo;
 - `0.3.x`: ERC-1271 execution, production image, and automated distribution.
 
-The release automation is not implemented yet. Until that milestone lands, this document is a
-checklist, not a claim that publishing is automatic.
+Container publishing is automated; binary, GitHub Release, and crates.io publishing remain a
+checklist until the next implementation step lands.
+
+## Container publishing
+
+`.github/workflows/docker.yml` builds the production image for Linux AMD64 and ARM64 on relevant
+pull requests and merge queues. It publishes only for pushes:
+
+- `main` updates `ghcr.io/ptk030/why712:latest` and a `sha-...` traceability tag;
+- a stable `vX.Y.Z` tag publishes `X.Y.Z`, `X.Y`, and `latest`;
+- provenance and an SBOM are attached by BuildKit;
+- layer cache is stored in GitHub Actions, not in the runtime image.
+
+The job defaults to read-only repository access and grants `packages: write` only to the image
+job. GHCR authentication uses the scoped `GITHUB_TOKEN`; no registry password or PAT is stored
+as a repository secret. Every third-party action is pinned to a full commit SHA resolved from
+its official release tag (last checked 2026-07-29).
+
+Before tagging a release, confirm the image built from the same commit passes:
+
+```bash
+docker run --rm --network none --read-only ghcr.io/ptk030/why712:X.Y.Z --version
+```
+
+After publishing, inspect the manifest for both architectures, verify the OCI source/license
+labels and attestations, then run one matching and one mismatching fixture by digest-pinned image
+reference. If an image is broken, preserve the immutable version tag, document the incident, and
+publish a fixed patch version; move `latest` only to that verified patch.
 
 ## Prepare
 

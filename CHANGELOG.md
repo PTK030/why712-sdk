@@ -25,5 +25,6 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - ERC-1271 contract-signature execution with opaque signature bytes and explicit valid, invalid,
   and unavailable outcomes.
 - Non-root distroless production image and a pinned Anvil mainnet-fork Compose service.
+- Multi-architecture GHCR workflow with semver/latest tags, provenance, SBOM, and GHA caching.
 
 [Unreleased]: https://github.com/PTK030/why712/commits/main
