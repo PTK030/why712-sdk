@@ -31,5 +31,6 @@ pub use error::{Error, Result};
 pub use input::DiagnoseRequest;
 pub use report::{
     Confidence, Finding, FindingCode, REPORT_SCHEMA_VERSION, Report, Severity, Verdict,
+    render_markdown,
 };
 pub use signature::{ParsedSignature, RecoveryEncoding, SignatureFormat};

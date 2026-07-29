@@ -162,6 +162,16 @@ The integration contract covers:
 the boundary where malformed signatures remain `Error` rather than findings. Snapshot files are
 LF-normalized by `.gitattributes`; they pass under the native Windows toolchain.
 
+## Markdown reports
+
+`tests/markdown.rs` snapshots both a matching report and a proven root-cause report. The
+renderer consumes only `Report`; it never re-hashes input or repeats diagnosis logic. A
+separate assertion covers escaping pipes, backslashes, and line breaks that would otherwise
+break GitHub-flavored Markdown tables.
+
+The output deliberately uses ASCII status labels and separators so the same report remains
+readable in Windows terminals, redirected files, GitHub issues, and browser clipboard output.
+
 ## Required checks
 
 Run these after every milestone:

@@ -1,0 +1,46 @@
+---
+source: crates/why712-core/tests/markdown.rs
+expression: render_markdown(&wrong_chain)
+---
+# why712 diagnostic report
+
+**Verdict:** FAIL `MISMATCH`
+
+## Signer
+
+| Value | Address |
+|---|---|
+| Expected | `0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826` |
+| Recovered | `0xF672CF05fDc6981ccA0390BC3A0adD5E93e67f95` |
+
+## Findings
+
+### `DOMAIN_CHAIN_ID_MISMATCH` | error | certain confidence
+
+Using chain ID 1 recovers the expected signer.
+
+**Evidence:** Digest 0xbe609aee343fb3c4b28e1df9e632fca64fcfaede20f02e86244efddf30957bd2 recovers the expected signer.
+
+**Fix:** Set domain.chainId to 1 and sign again.
+
+### `SIGNER_MISMATCH` | error | certain confidence
+
+The canonical digest recovers a different signer.
+
+| Expected | Actual |
+|---|---|
+| 0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826 | 0xF672CF05fDc6981ccA0390BC3A0adD5E93e67f95 |
+
+**Fix:** Resolve the more specific digest findings before changing the signer.
+
+## EIP-712 computation
+
+| Intermediate | Value |
+|---|---|
+| `encodeType` | `Mail(Person from,Person to,string contents)Person(string name,address wallet)` |
+| `typeHash` | `0xa0cedeb2dc280ba39b857546d74f5549c3a1d7bdc2dd96bf881f76108e23dac2` |
+| `hashStruct` | `0xc52c0ee5d84264471806290a3f2c4cecfc5490626bf912d01f240d7a274b371e` |
+| `domainSeparator` | `0x83102377e5b40a663eb5c8575160030d1ed8a86922edf52a972a5b27fc9cc085` |
+| `digest` | `0x53e341aefc7641107dbb3d5af2a67709d7132f5cc532d728b2b610bf1e4ba72e` |
+
+_Report schema v1 - generated locally by why712_

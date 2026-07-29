@@ -1,11 +1,15 @@
 //! Stable diagnostic report model shared by the CLI, WASM, and markdown renderer.
 
+mod markdown;
+
 use core::fmt;
 
 use alloy_primitives::Address;
 use serde::Serialize;
 
 use crate::ComputedValues;
+
+pub use markdown::render_markdown;
 
 /// Current version of the serialized report contract.
 pub const REPORT_SCHEMA_VERSION: u32 = 1;
