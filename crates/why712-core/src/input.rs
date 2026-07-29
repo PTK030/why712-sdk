@@ -2,7 +2,7 @@
 
 use alloy_primitives::Address;
 
-use crate::HypothesisContext;
+use crate::{HypothesisContext, OnchainSnapshot};
 
 /// Inputs for the pure offline diagnosis path.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -15,4 +15,6 @@ pub struct DiagnoseRequest {
     pub expected_signer: Option<Address>,
     /// Caller-provided candidate facts, including values observed from a chain.
     pub hypothesis_context: HypothesisContext,
+    /// Optional plain chain observations acquired before deterministic diagnosis.
+    pub onchain_snapshot: Option<OnchainSnapshot>,
 }

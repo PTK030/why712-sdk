@@ -14,19 +14,28 @@
 //!   failure. `alloy-dyn-abi` is the engine; this crate exposes the intermediates it computes
 //!   and reasons about them.
 
+pub mod chain;
 pub mod diagnose;
 pub mod eip712;
+pub mod erc1271;
 pub mod error;
 pub mod input;
 pub mod report;
 pub mod signature;
 
+#[cfg(feature = "rpc")]
+pub mod rpc;
+
+pub use chain::{
+    ChainClient, DomainProbe, OnchainSnapshot, ProbeFailure, acquire_onchain_snapshot,
+};
 pub use diagnose::diagnose_offline;
 pub use eip712::{
-    Candidate, ComputedValues, Digest, DomainField, DomainSeparator, HypothesisContext,
-    HypothesisHit, HypothesisKind, MAX_CANDIDATES, StructHash, TypeHash, TypedDataDocument,
-    generate_candidates, search,
+    Candidate, ComputedValues, Digest, DomainField, DomainFields, DomainSeparator,
+    HypothesisContext, HypothesisHit, HypothesisKind, MAX_CANDIDATES, OnchainDomain, StructHash,
+    TypeHash, TypedDataDocument, generate_candidates, search,
 };
+pub use erc1271::{ERC1271_MAGIC_VALUE, encode_is_valid_signature};
 pub use error::{Error, Result};
 pub use input::DiagnoseRequest;
 pub use report::{

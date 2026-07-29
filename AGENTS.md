@@ -10,7 +10,8 @@ Two front-ends, one core: a CLI (`why712`) and a WASM demo page. There is no bac
 
 This is a Cargo workspace.
 
-- `crates/why712-core` — all the logic. Pure, synchronous, no network, no clock, no randomness.
+- `crates/why712-core` — deterministic diagnosis plus transport-neutral chain snapshot types.
+  Diagnosis is pure and synchronous; the optional native `rpc` feature is the only network code.
 - `crates/why712-cli` — the `why712` binary. Argument parsing and rendering only.
 - `crates/why712-wasm` — JS bindings and a `fetch`-based RPC transport.
 - `web/` — the static demo page. Plain HTML/CSS/JS, no bundler.
@@ -94,9 +95,10 @@ cheaper to catch now than after the code is written. CI runs it on every push.
 
 ## Non-negotiables
 
-- **`why712-core` never performs I/O.** No network, no filesystem, no clock, no randomness.
-  Chain data enters as a plain snapshot the caller supplies. This is what lets the CLI and the
-  browser share one implementation, and what makes every diagnosis reproducible from its inputs.
+- **Diagnosis never performs I/O.** No network, filesystem, clock, or randomness may enter the
+  diagnosis path. Chain data enters it as a plain `OnchainSnapshot`. The only concrete I/O in
+  `why712-core` is the opt-in native adapter in `rpc.rs`; the default and wasm dependency graphs
+  exclude it. This keeps every report reproducible from its inputs.
 - **We do not implement EIP-712 hashing ourselves.** `alloy-dyn-abi` is the engine. For a tool
   whose entire purpose is telling people their hashing is wrong, a bug in its own hashing is the
   worst possible failure.

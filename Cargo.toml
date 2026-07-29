@@ -37,8 +37,12 @@ hex = "0.4.3"
 getrandom = "0.2.17"
 
 # Native-only, behind the `rpc` feature.
-alloy = { version = "2.2.0", default-features = false }
-tokio = { version = "1.53.1", default-features = false }
+alloy = { version = "2.2.0", default-features = false, features = [
+    "provider-http",
+    "reqwest-rustls-tls",
+    "rpc-types",
+] }
+tokio = { version = "1.53.1", default-features = false, features = ["macros", "rt"] }
 
 # CLI
 clap = { version = "4.6.4", features = ["derive", "env"] }

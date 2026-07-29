@@ -3,9 +3,9 @@
 use serde_json::Value;
 
 use crate::{
-    Confidence, DiagnoseRequest, Finding, FindingCode, HypothesisHit, HypothesisKind,
-    ParsedSignature, RecoveryEncoding, Report, Result, Severity, TypedDataDocument, Verdict,
-    search,
+    Confidence, DiagnoseRequest, DomainProbe, Finding, FindingCode, HypothesisHit, HypothesisKind,
+    OnchainSnapshot, ParsedSignature, RecoveryEncoding, Report, Result, Severity,
+    TypedDataDocument, Verdict, search,
 };
 
 const MAX_SAFE_INTEGER: u64 = 9_007_199_254_740_991;
@@ -32,12 +32,20 @@ pub fn diagnose_offline(request: &DiagnoseRequest) -> Result<Report> {
     if let Some(signature) = &signature {
         signature_findings(signature, &mut findings);
     }
+    if let Some(snapshot) = &request.onchain_snapshot {
+        onchain_findings(snapshot, &computed.domain_separator, &mut findings);
+    }
 
+    let signer_is_contract = request
+        .onchain_snapshot
+        .as_ref()
+        .is_some_and(OnchainSnapshot::signer_is_contract);
     let canonical_match = request
         .expected_signer
         .is_some_and(|expected| recovered == Some(expected));
     if let (Some(signature), Some(expected)) = (&signature, request.expected_signer)
         && !canonical_match
+        && !signer_is_contract
         && signature.recovery().parity().is_some()
         && !signature.has_zero_r()
         && !signature.has_zero_s()
@@ -49,6 +57,7 @@ pub fn diagnose_offline(request: &DiagnoseRequest) -> Result<Report> {
 
     if let (Some(expected), Some(actual)) = (request.expected_signer, recovered)
         && expected != actual
+        && !signer_is_contract
     {
         findings.push(Finding {
             code: FindingCode::SignerMismatch,
@@ -74,20 +83,93 @@ pub fn diagnose_offline(request: &DiagnoseRequest) -> Result<Report> {
                 | FindingCode::SigZeroS
         )
     });
-    let verdict = match (
-        signature.is_some(),
-        request.expected_signer,
-        canonical_match,
-    ) {
-        (true, Some(_), true) if !has_signature_fault => Verdict::Match,
-        (true, Some(_), _) => Verdict::Mismatch,
-        _ => Verdict::Inconclusive,
+    let verdict = if signer_is_contract {
+        Verdict::Inconclusive
+    } else {
+        match (
+            signature.is_some(),
+            request.expected_signer,
+            canonical_match,
+        ) {
+            (true, Some(_), true) if !has_signature_fault => Verdict::Match,
+            (true, Some(_), _) => Verdict::Mismatch,
+            _ => Verdict::Inconclusive,
+        }
     };
     let mut report = Report::new(verdict, computed);
     report.expected_signer = request.expected_signer;
     report.recovered_signer = recovered;
     report.findings = findings;
     Ok(report)
+}
+
+fn onchain_findings(
+    snapshot: &OnchainSnapshot,
+    local_separator: &crate::DomainSeparator,
+    findings: &mut Vec<Finding>,
+) {
+    if snapshot.signer_is_contract() {
+        findings.push(Finding {
+            code: FindingCode::SignerIsContract,
+            severity: Severity::Info,
+            confidence: Confidence::High,
+            message: "The expected signer has deployed runtime code.".to_owned(),
+            expected: Some("ERC-1271 validation".to_owned()),
+            actual: Some("contract account".to_owned()),
+            remediation: Some(
+                "Call isValidSignature(bytes32,bytes) on the signer contract.".to_owned(),
+            ),
+            evidence: snapshot
+                .signer_code
+                .as_ref()
+                .map(|code| format!("eth_getCode returned {} byte(s).", code.len())),
+        });
+    }
+
+    let observed = match &snapshot.domain {
+        DomainProbe::Erc5267 { domain, separator } => {
+            if let (Some(recomputed), Some(returned)) = (domain.separator(), separator)
+                && recomputed != *returned
+            {
+                findings.push(Finding {
+                    code: FindingCode::OnchainDomainSelfInconsistent,
+                    severity: Severity::Error,
+                    confidence: Confidence::High,
+                    message: "ERC-5267 fields do not reproduce the contract's DOMAIN_SEPARATOR()."
+                        .to_owned(),
+                    expected: Some(returned.as_b256().to_string()),
+                    actual: Some(recomputed.as_b256().to_string()),
+                    remediation: Some(
+                        "Inspect the contract or proxy domain implementation.".to_owned(),
+                    ),
+                    evidence: Some(format!(
+                        "ERC-5267 fields bitmap: 0x{:02x}",
+                        domain.fields.bits()
+                    )),
+                });
+            }
+            separator.as_ref().copied().or_else(|| domain.separator())
+        }
+        DomainProbe::SeparatorOnly { separator } => Some(*separator),
+        DomainProbe::Unavailable => None,
+    };
+
+    if let Some(observed) = observed
+        && observed != *local_separator
+    {
+        findings.push(Finding {
+            code: FindingCode::DomainSeparatorMismatch,
+            severity: Severity::Error,
+            confidence: Confidence::High,
+            message: "The local and on-chain domain separators differ.".to_owned(),
+            expected: Some(observed.as_b256().to_string()),
+            actual: Some(local_separator.as_b256().to_string()),
+            remediation: Some(
+                "Compare the domain fields and sign with the contract's domain.".to_owned(),
+            ),
+            evidence: Some(format!("Contract: {}", snapshot.contract)),
+        });
+    }
 }
 
 fn signature_findings(signature: &ParsedSignature, findings: &mut Vec<Finding>) {

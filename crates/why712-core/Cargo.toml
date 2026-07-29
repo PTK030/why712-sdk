@@ -39,6 +39,8 @@ getrandom = { workspace = true, features = ["js"] }
 
 [dev-dependencies]
 insta.workspace = true
+tokio.workspace = true
+wiremock.workspace = true
 
 [lints]
 workspace = true

@@ -33,7 +33,9 @@ durable context so another agent can continue without rediscovering constraints.
 
 ## Implement and verify
 
-- Keep `why712-core` synchronous and free of I/O, clock, and randomness.
+- Keep deterministic diagnosis synchronous and free of I/O, clock, and randomness. Acquire a
+  plain `OnchainSnapshot` first. Concrete native I/O belongs only in `rpc.rs` behind `rpc`;
+  browser I/O belongs in the WASM adapter.
 - Use `alloy-dyn-abi` for EIP-712 hashing; do not implement the algorithm independently.
 - Prefer the native pinned Rust toolchain. Run the development container only when the native
   toolchain or linker is unavailable.
