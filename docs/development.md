@@ -18,6 +18,10 @@ setup has been verified for this repository.
 
 `.mise.toml` pins Node.js 24.16.0 LTS and `wasm-pack` 0.15.0. `package.json` pins pnpm
 11.9.0, while `pnpm-lock.yaml` pins Astro, Starlight, TypeScript, and their complete graph.
+Keep TypeScript on the pinned 6.x line until Astro's language server supports the programmatic
+API of TypeScript 7's native compiler; otherwise `pnpm check:web` fails before site diagnostics
+run. Dependabot ignores only TypeScript major updates and continues proposing compatible 6.x
+updates.
 Install the exact toolchain and dependencies with:
 
 ```bash

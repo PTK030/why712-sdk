@@ -17,6 +17,8 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Added focused agent skills for diagnostics, fixture research, and releases.
 - Added a documentation-sync skill and PR contract so features, public behavior changes, and
   releases update affected docs in the same change.
+- Kept Dependabot on the TypeScript 6.x line until Astro supports TypeScript 7's native
+  compiler API.
 - Improved container build caching, GHCR usage guidance, and superseded-main-run cancellation.
 
 ### Added
