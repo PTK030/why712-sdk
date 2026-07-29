@@ -172,6 +172,32 @@ break GitHub-flavored Markdown tables.
 The output deliberately uses ASCII status labels and separators so the same report remains
 readable in Windows terminals, redirected files, GitHub issues, and browser clipboard output.
 
+## Chain snapshots and RPC
+
+`tests/chain.rs` uses a fake `ChainClient` with no HTTP. It proves the ERC-5267 failure path
+falls back to `DOMAIN_SEPARATOR()`, retains the failed probe as evidence, records chain and code
+observations, and detects a contract signer. Unit tests beside `eip712/domain.rs` cover the
+LSB-first bitmap, canonical separator reconstruction, and refusal to guess extension semantics.
+
+`tests/rpc.rs` is enabled only by the `rpc` feature. A local wiremock server verifies that the
+Alloy adapter maps exactly `eth_chainId`, `eth_getCode`, and `eth_call`, including their hex
+response types. It does not depend on a public endpoint or live contract.
+
+Direct diagnosis tests prove on-chain separator mismatch, `SIGNER_IS_CONTRACT`, and
+`ONCHAIN_DOMAIN_SOURCE` behavior. A contract signer remains inconclusive until ERC-1271
+execution exists; the core does not emit a false EOA mismatch.
+
+## CLI
+
+`crates/why712-cli/tests/cli.rs` executes the compiled binary. It covers:
+
+- text, versioned JSON, and Markdown report formats;
+- `check`, `digest`, `examples`, and `explain`;
+- exit 0 for a match, 1 for a non-match, and 2 for usage/input/I/O failures;
+- explicit RPC failure on stderr followed by offline fallback;
+- `--offline` overriding `WHY712_RPC_URL`;
+- stable digest and finding-code output from shared fixtures.
+
 ## Required checks
 
 Run these after every milestone:

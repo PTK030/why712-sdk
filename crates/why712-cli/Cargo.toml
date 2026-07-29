@@ -1,5 +1,5 @@
 [package]
-name = "why712-cli"
+name = "why712"
 description = "Command-line tool that diagnoses why an EIP-712 signature does not verify"
 readme = "../../README.md"
 version.workspace = true

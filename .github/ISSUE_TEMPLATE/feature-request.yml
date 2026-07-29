@@ -1,0 +1,48 @@
+name: Feature request
+description: Propose a focused diagnostic or workflow improvement.
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        why712 has deliberately narrow scope: EVM EIP-712 diagnosis, no signing, wallet,
+        backend, database, or RPC proxy.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What concrete diagnosis or workflow is currently impossible?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Real-world evidence
+      description: Link a public contract, standard, issue, or synthetic example without secrets.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+      description: Describe the user-visible result, not only an implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and alternatives
+      description: Explain why this belongs in why712 and what workaround exists today.
+    validations:
+      required: true
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Project constraints
+      options:
+        - label: This does not require why712 to sign, hold keys, operate a wallet, or add a backend.
+          required: true
+        - label: I can provide a test or independently verifiable example.
+          required: true

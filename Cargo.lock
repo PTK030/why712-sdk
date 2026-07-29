@@ -4549,7 +4549,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "why712-cli"
+name = "why712"
 version = "0.1.0"
 dependencies = [
  "alloy-primitives",

@@ -2,86 +2,104 @@
 
 <p align="center">
   <a href="https://github.com/PTK030/why712/actions/workflows/ci.yml"><img src="https://github.com/PTK030/why712/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://crates.io/crates/why712"><img src="https://img.shields.io/crates/v/why712.svg" alt="crates.io"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT"></a>
 </p>
 
-<p align="center">Find out why your EIP-712 signature doesn't verify. One command, one concrete answer.</p>
+<p align="center">Find out why an EIP-712 signature does not verify.</p>
 
-> **Status: pre-release.** The core and CLI are being built (`v0.1.0`). The browser demo lands
-> in `v0.2.0`; published binaries and the Docker image in `v0.3.0`.
+> **Pre-release:** the native core and CLI are functional. The browser demo, packaged binaries,
+> and production Docker image belong to later milestones and are not available yet.
 
-- **Reads the real domain separator** from the contract via `eip712Domain()` (ERC-5267),
-  falling back to `DOMAIN_SEPARATOR()`. No guessing what the contract thinks it signed.
-- **Finds the root cause, not just a diff.** Searches a bounded space of likely mistakes and
-  tells you which one reproduces the contract's separator or recovers your signer.
-- **Works offline.** Everything except one RPC call is local, and most diagnoses need no
-  network at all.
-- **CI-friendly.** Exit code 1 on mismatch, `--format json`, and a Docker image so you don't
-  need Rust installed.
-- **Privacy-first.** No telemetry, no accounts, no server.
+why712 computes every EIP-712 intermediate, recovers the signer, and searches a bounded set of
+common signing mistakes. When an RPC endpoint is supplied, it reads the contract's actual domain
+through ERC-5267 or `DOMAIN_SEPARATOR()` and records exactly which fallback was used.
 
-## Why this exists
+- Root-cause findings for wrong chain IDs, domain fields, field order, integer widths, packed
+  encoding, unhashed dynamic values, missing `0x1901`, bare struct hashes, and `personal_sign`.
+- Signature diagnostics for raw or invalid `v`, high-S malleability, zero scalars, canonical
+  65-byte signatures, and compact ERC-2098 signatures.
+- Text, versioned JSON, and GitHub-flavored Markdown output.
+- Deterministic offline operation with no telemetry, account, or backend.
+- CI exit codes: `0` match, `1` non-match, `2` usage/input/I/O error.
 
-`Invalid signature` is the least useful error message in the EVM. The signature looks fine, the
-address looks fine, and `permit()` still reverts — with no way to tell whether the problem is
-the chainId, the field order, the `v` byte, or the contract computing its domain separator
-differently than your library does.
+## Run from source
 
-This happens to real projects. [Permit2 omits `version` from its EIP712Domain while
-OpenZeppelin's EIP712 includes it](https://forum.openzeppelin.com/t/permit2-typehash-inconsistency/42049),
-so the on-chain and off-chain separators silently disagree.
-[Uniswap V2 shipped a `PERMIT_TYPEHASH` that didn't match its own `permit()`
-signature](https://github.com/Uniswap/v2-core/pull/79).
-
-why712 reads the **real** domain separator from the contract, recomputes the digest locally,
-and tells you exactly what differs — and when it can, **what to change to make it work**.
-
-## Example
-
-```
-$ why712 check --typed-data permit.json --signature 0x… --contract 0xA0b8… --signer 0x…
-
-✗ MISMATCH — local digest ≠ on-chain digest
-
-  domain.chainId       expected  1         got  137
-  domain.version       expected  (absent)  got  "1"
-  signature.v          expected  27/28     got  0        → normalize: v + 27
-
-✓ ROOT CAUSE FOUND
-  Dropping `version` from the domain reproduces the contract's domain separator,
-  and the signature then recovers to 0xf39F…2266. This contract (Permit2) does not
-  declare `version` in EIP712Domain — your signing library adds it by default.
-```
-
-## Install
+Rust 1.97 is pinned by `rust-toolchain.toml`. After cloning:
 
 ```bash
-cargo install why712
+cargo run -p why712 -- examples
+cargo run -p why712 -- check \
+  --typed-data crates/why712-core/fixtures/examples/wrong-chain-id.json \
+  --signature 0x4355c47d63924e8a72e509b65029052eb6c299d53a04e167c5775fd466751c9d07299936d304c153f6443dfa05f40ff007d72911b6f72307f996231605b915621c \
+  --signer 0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826 \
+  --chain-id 1 \
+  --offline
 ```
 
-## Docs
+Install the current checkout locally:
 
-| Doc | What's in it |
+```bash
+cargo install --path crates/why712-cli --locked
+```
+
+Once the first release is published, the install command will be `cargo install why712`.
+
+## Commands
+
+```text
+why712 check    Diagnose a signature, optionally enriched through RPC
+why712 digest   Print canonical EIP-712 intermediate hashes
+why712 examples List the bundled reproducible cases
+why712 explain  Explain a stable FindingCode
+```
+
+Typed data may come from a file or stdin (`--typed-data -`). A live probe requires both
+`--contract` and `--rpc`; `WHY712_RPC_URL` may supply the endpoint. `--offline` always prevents
+network access, including when that environment variable is set.
+
+```bash
+why712 check \
+  --typed-data permit.json \
+  --signature 0x... \
+  --signer 0x... \
+  --contract 0x... \
+  --rpc https://your-endpoint.example \
+  --format json
+
+why712 digest --typed-data permit.json --format json
+why712 explain DOMAIN_CHAIN_ID_MISMATCH
+```
+
+RPC enrichment failure is printed to stderr and diagnosis continues offline. Reports that have
+chain evidence include `ONCHAIN_DOMAIN_SOURCE`, so an ERC-5267, separator-only, or offline
+fallback is never silent.
+
+## What the tool does not do
+
+why712 does not sign messages, accept private keys, submit transactions, operate a wallet, or
+support non-EVM chains. ERC-1271 contract accounts are detected in the current milestone; full
+`isValidSignature` execution is planned for the hardening milestone.
+
+Never provide a private key or seed phrase. Typed data and signatures may themselves contain
+sensitive application data; review a report before sharing it.
+
+## Documentation
+
+| Document | Contents |
 |---|---|
-| [docs/diagnostics.md](docs/diagnostics.md) | Every diagnostic code: what it means, why it happens, how to fix it |
-| [docs/architecture.md](docs/architecture.md) | Crate layering, the pure-core boundary, how RPC stays out of it |
-| [docs/coding-standards.md](docs/coding-standards.md) | What gets merged and what doesn't |
-| [docs/testing.md](docs/testing.md) | Test vectors, fixtures, snapshots, wasm tests |
-| [docs/development.md](docs/development.md) | Local setup, building for wasm, running the demo page |
-| [docs/release.md](docs/release.md) | Release playbook |
-| [SECURITY.md](SECURITY.md) | Threat model and what never leaves your machine |
+| [Diagnostic catalog](docs/diagnostics.md) | Every stable finding code, meaning, and fix |
+| [Architecture](docs/architecture.md) | Crate boundaries, snapshots, RPC, ERC-5267, ERC-1271 |
+| [Development](docs/development.md) | Native Rust setup, container fallback, local commands |
+| [Testing](docs/testing.md) | Independent vectors, fixtures, snapshots, required checks |
+| [Coding standards](docs/coding-standards.md) | Review and implementation rules |
+| [Release](docs/release.md) | Versioning, verification, publishing, and rollback |
+| [Security policy](SECURITY.md) | Threat model, privacy boundary, vulnerability reporting |
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). In short: one focused change, tests included,
-`cargo fmt` and `cargo clippy` clean, and tell us how you verified it.
-
-## For maintainers
-
-Some repository settings cannot live in a file and have to be set in the GitHub UI: branch
-protection on `main` (require the `fmt`, `clippy`, and `test` checks and a PR before merge),
-Discussions enabled, the `homepage` field pointing at the demo, and the repository topics.
+Read [CONTRIBUTING.md](CONTRIBUTING.md). The short version: keep changes focused, preserve the
+pure diagnosis boundary, add tests and diagnostic documentation together, and run all four
+required checks.
 
 ## License
 

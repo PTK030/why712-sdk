@@ -1,0 +1,21 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
+uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+
+- Pure EIP-712 parsing and intermediate computation through Alloy.
+- Canonical and ERC-2098 signature parsing, recovery, and scalar diagnostics.
+- Bounded root-cause search across common domain, type, encoding, and envelope mistakes.
+- Stable versioned reports with text, JSON, and Markdown rendering.
+- ERC-5267 and `DOMAIN_SEPARATOR()` probing through an optional rustls Alloy transport.
+- Contract-signer detection and ERC-1271 ABI helpers.
+- `why712 check`, `digest`, `examples`, and `explain` commands with tested exit codes.
+- Shared independently verified fixture corpus, snapshots, native CI, and WASM compile guard.
+
+[Unreleased]: https://github.com/PTK030/why712/commits/main

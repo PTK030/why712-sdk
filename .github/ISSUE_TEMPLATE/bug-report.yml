@@ -1,0 +1,74 @@
+name: Bug report
+description: Report incorrect diagnosis, a crash, or unexpected CLI behavior.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Never include a private key, seed phrase, production RPC credential, or sensitive typed data.
+        Use synthetic or redacted inputs. Report security vulnerabilities privately through SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Output of `why712 --version` or the commit SHA.
+      placeholder: why712 0.1.0 or abc1234
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface
+      options:
+        - CLI
+        - why712-core library
+        - WASM or browser demo
+        - CI, packaging, or documentation
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command or API call
+      description: Include flags but redact endpoint credentials and sensitive paths.
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include exit code, finding codes, and stderr where relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal synthetic reproduction
+      description: Attach or paste only data safe to publish.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Rust version, install method, and whether offline or RPC mode was used.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Safety checks
+      options:
+        - label: I removed private keys, seed phrases, credentials, and sensitive user data.
+          required: true
+        - label: This is not an undisclosed security vulnerability.
+          required: true
