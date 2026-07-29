@@ -1,0 +1,34 @@
+{
+  "types": {
+    "EIP712Domain": [
+      { "name": "name", "type": "string" },
+      { "name": "version", "type": "string" },
+      { "name": "chainId", "type": "uint256" },
+      { "name": "verifyingContract", "type": "address" }
+    ],
+    "Attachment": [
+      { "name": "name", "type": "string" },
+      { "name": "data", "type": "bytes" }
+    ],
+    "Batch": [
+      { "name": "title", "type": "string" },
+      { "name": "attachments", "type": "Attachment[]" },
+      { "name": "ids", "type": "uint256[]" }
+    ]
+  },
+  "primaryType": "Batch",
+  "domain": {
+    "name": "why712 Vector",
+    "version": "1",
+    "chainId": 31337,
+    "verifyingContract": "0x0000000000000000000000000000000000000712"
+  },
+  "message": {
+    "title": "Array and bytes",
+    "attachments": [
+      { "name": "proof.bin", "data": "0xdeadbeef" },
+      { "name": "empty.bin", "data": "0x" }
+    ],
+    "ids": [1, 2, 3]
+  }
+}
