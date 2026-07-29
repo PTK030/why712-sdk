@@ -16,10 +16,15 @@ rustup target list --installed
 On Windows, the MSVC target also needs the Visual Studio C++ linker. A working native Windows
 setup has been verified for this repository.
 
-`.mise.toml` pins the supporting web toolchain: Node.js 24.16.0 LTS and `wasm-pack` 0.15.0.
-Install both with `mise install`, or install the exact WASM tool directly:
+`.mise.toml` pins Node.js 24.16.0 LTS and `wasm-pack` 0.15.0. `package.json` pins pnpm
+11.9.0, while `pnpm-lock.yaml` pins Astro, Starlight, TypeScript, and their complete graph.
+Install the exact toolchain and dependencies with:
 
 ```bash
+mise install
+corepack enable
+corepack prepare pnpm@11.9.0 --activate
+pnpm install --frozen-lockfile
 cargo install wasm-pack --version 0.15.0 --locked
 ```
 
@@ -105,28 +110,29 @@ has not leaked into the browser dependency graph.
 For web-facing changes, also run:
 
 ```bash
-node --test web/share.test.mjs web/dom-contract.test.mjs
-node scripts/build-web.mjs
+pnpm test:web
+pnpm check:web
+pnpm build
 ```
 
 ## WASM bindings and browser tests
 
-Build the complete static demo. The script runs the release WASM build, writes its ignored
-package to `web/pkg/`, and copies the manifest's referenced fixtures to ignored
-`web/examples/`:
+Build the complete static site. The script runs the release WASM build, writes its ignored
+package and fixtures under `web/public/app/`, then builds the Astro landing page, vanilla
+playground, and Starlight documentation into ignored `web/dist/`:
 
 ```bash
-node scripts/build-web.mjs
+pnpm build
 node scripts/serve-web.mjs
 ```
 
-Open `http://127.0.0.1:4173/`. Set `WHY712_WEB_PORT` to use another port. The server is for
-local development only; production is a static GitHub Pages artifact.
+Open `http://127.0.0.1:4173/why712/`. Set `WHY712_WEB_PORT` to use another port. The server is
+for local development only; production is the exact static `web/dist` Pages artifact.
 
-Run the dependency-free URL-fragment tests with:
+Run the URL-fragment and Astro selector contract tests with:
 
 ```bash
-node --test web/share.test.mjs
+pnpm test:web
 ```
 
 Run the JavaScript contract tests in headless Chrome:

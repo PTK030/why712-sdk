@@ -1,0 +1,14 @@
+:root {
+  --sl-color-accent-low: #26310d;
+  --sl-color-accent: #a8df20;
+  --sl-color-accent-high: #e9ffc0;
+  --sl-color-bg: #0b0d0c;
+  --sl-color-bg-nav: #0b0d0c;
+  --sl-color-bg-sidebar: #0e110f;
+  --sl-color-hairline: #30372f;
+}
+
+.site-title {
+  font-weight: 850;
+  letter-spacing: -0.04em;
+}

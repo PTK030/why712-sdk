@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { decodeShareState, encodeShareState } from "./share.js";
+import { decodeShareState, encodeShareState } from "../../public/app/share.js";
 
 test("share fragments round-trip unicode input without leaking unknown fields", () => {
   const input = {

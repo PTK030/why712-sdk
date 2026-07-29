@@ -45,7 +45,8 @@ cargo run -p why712 -- check \
 docker build --file docker/Dockerfile --tag why712:local .
 docker run --rm --network none --read-only why712:local examples
 
-node scripts/build-web.mjs
+pnpm install --frozen-lockfile
+pnpm build
 node scripts/serve-web.mjs
 ```
 

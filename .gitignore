@@ -4,10 +4,16 @@
 *.pdb
 
 # wasm-pack output
-/web/pkg/
+/web/public/app/pkg/
 /crates/why712-wasm/pkg/
-/web/examples/
-/web/build.json
+/web/public/app/examples/
+/web/public/app/build.json
+/web/dist/
+
+# Node/Astro
+/node_modules/
+/.pnpm-store/
+/.astro/
 
 # Insta snapshot review artifacts
 **/*.snap.new

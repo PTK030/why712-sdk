@@ -1,7 +1,9 @@
 # Architecture
 
 why712 has one deterministic diagnosis engine and two delivery surfaces: a native CLI and a
-browser demo. There is no backend.
+statically generated Astro website. The site contains an Astro landing page, Starlight user
+documentation, and a vanilla TypeScript playground using the WASM bindings. There is no React
+runtime and no backend.
 
 ## Dependency direction
 
@@ -22,6 +24,11 @@ Chain acquisition is deliberately separate:
 The native Alloy adapter is compiled only with `why712-core/rpc`. The default core graph, used by
 the browser build, contains no provider or Tokio transport. The WASM crate implements the same
 port over `window.fetch`.
+
+Astro is a build-time delivery layer only. It never owns hashing, diagnosis, report rendering,
+or RPC semantics. `scripts/build-web.mjs` first builds the Rust bindings and copies the shared
+fixture corpus into the public playground tree, then Astro emits the complete static artifact
+to `web/dist`.
 
 ## Domain probing
 

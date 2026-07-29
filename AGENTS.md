@@ -14,7 +14,8 @@ This is a Cargo workspace.
   Diagnosis is pure and synchronous; the optional native `rpc` feature is the only network code.
 - `crates/why712-cli` — the `why712` binary. Argument parsing and rendering only.
 - `crates/why712-wasm` — JS bindings and a `fetch`-based RPC transport.
-- `web/` — the static demo page. Plain HTML/CSS/JS, no bundler.
+- `web/` — the statically generated Astro site: landing page, Starlight user docs, and vanilla
+  TypeScript/WASM playground. No React and no backend.
 - `docker/` — the shipped CLI image and the development toolchain image.
 - `scripts/` — helper scripts, notably `dev-cargo.sh`.
 
@@ -83,6 +84,9 @@ cargo test --workspace
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo fmt --all -- --check
 cargo check -p why712-core --target wasm32-unknown-unknown
+pnpm test:web
+pnpm check:web
+pnpm build
 ```
 
 Without Rust, run the same commands through the pinned toolchain container:

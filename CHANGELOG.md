@@ -9,6 +9,8 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Rebuilt the static website with Astro and TypeScript, split the WASM playground to `/app/`,
+  and added searchable Starlight user documentation under `/docs/`.
 - Switched new versions from MIT to PolyForm Noncommercial 1.0.0, with separate paid
   commercial licensing.
 - Added Polish, Simplified Chinese, and Japanese README translations.

@@ -1,0 +1,199 @@
+---
+import logo from "../assets/logo.svg";
+
+const base = `${import.meta.env.BASE_URL}/`;
+const features = [
+  {
+    marker: "01",
+    title: "Expose every intermediate",
+    copy: "Inspect encodeType, typeHash, encodeData, structHash, the domain separator, digest, and recovered signer.",
+  },
+  {
+    marker: "02",
+    title: "Prove the root cause",
+    copy: "Bounded hypotheses test common domain, encoding, type, envelope, and signature mistakes instead of returning a generic failure.",
+  },
+  {
+    marker: "03",
+    title: "Compare with the contract",
+    copy: "Optional RPC evidence reads ERC-5267, DOMAIN_SEPARATOR(), and ERC-1271 without introducing a project backend.",
+  },
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="why712 diagnoses the exact reason an EIP-712 signature does not verify."
+    />
+    <meta name="theme-color" content="#0b0d0c" />
+    <title>why712 — explain broken EIP-712 signatures</title>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href={base}>
+        <img src={logo.src} width="38" height="38" alt="" />
+        <span>why712</span>
+      </a>
+      <nav aria-label="Primary navigation">
+        <a href={`${base}docs/guides/overview/`}>Docs</a>
+        <a href="https://github.com/PTK030/why712">GitHub</a>
+        <a class="nav-cta" href={`${base}app/`}>Open app</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <p class="kicker"><span></span> EIP-712 diagnostic engine</p>
+          <h1>Your signature failed.<br /><em>Find the exact byte that lied.</em></h1>
+          <p class="summary">
+            why712 recomputes the complete EIP-712 pipeline, recovers the signer, compares
+            on-chain domain evidence, and reports the concrete change that makes verification
+            work.
+          </p>
+          <div class="actions">
+            <a class="primary" href={`${base}app/`}>Diagnose a signature <span>→</span></a>
+            <a class="secondary" href={`${base}docs/guides/getting-started/`}>Read the docs</a>
+          </div>
+          <ul class="trust">
+            <li>No account</li>
+            <li>No telemetry</li>
+            <li>No backend</li>
+            <li>Rust + WASM</li>
+          </ul>
+        </div>
+
+        <aside class="terminal" aria-label="Example diagnostic output">
+          <div class="terminal-bar">
+            <span>why712 check</span>
+            <span class="status">root cause found</span>
+          </div>
+          <div class="terminal-body">
+            <p class="prompt">$ why712 check permit.json --offline</p>
+            <div class="result">
+              <span class="label">MISMATCH</span>
+              <strong>DOMAIN_CHAIN_ID_MISMATCH</strong>
+            </div>
+            <dl>
+              <div><dt>expected</dt><dd>1</dd></div>
+              <div><dt>signed</dt><dd>5</dd></div>
+              <div><dt>confidence</dt><dd>PROVEN</dd></div>
+            </dl>
+            <p class="fix"><span>fix</span> Set domain.chainId to <code>1</code> before signing.</p>
+            <div class="hashes">
+              <span>typeHash</span><code>0xa0cedeb2…</code>
+              <span>digest</span><code>0x25c9c7c2…</code>
+              <span>signer</span><code>0xCD2a3d9F…</code>
+            </div>
+          </div>
+        </aside>
+      </section>
+
+      <section class="feature-grid" aria-label="Capabilities">
+        {features.map((feature) => (
+          <article>
+            <span>{feature.marker}</span>
+            <h2>{feature.title}</h2>
+            <p>{feature.copy}</p>
+          </article>
+        ))}
+      </section>
+
+      <section class="boundary">
+        <div>
+          <p class="kicker"><span></span> Privacy boundary</p>
+          <h2>Your typed data stays in the browser.</h2>
+        </div>
+        <div class="boundary-copy">
+          <p>
+            Offline diagnosis performs no network I/O. If you request contract evidence, the
+            browser contacts only the RPC endpoint you selected — directly, without a why712
+            proxy.
+          </p>
+          <a href={`${base}docs/guides/privacy/`}>Understand the security model →</a>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span>why712</span>
+      <p>Source-available for permitted noncommercial use.</p>
+      <div>
+        <a href={`${base}docs/guides/overview/`}>Documentation</a>
+        <a href="https://github.com/PTK030/why712">Source</a>
+      </div>
+    </footer>
+  </body>
+</html>
+
+<style>
+  :global(*) { box-sizing: border-box; }
+  :global(html) { background: #0b0d0c; color: #f2f6ec; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+  :global(body) { margin: 0; background: radial-gradient(circle at 80% 5%, rgba(200,255,61,.09), transparent 27rem), #0b0d0c; }
+  :global(a) { color: inherit; }
+  .site-header, main, footer { width: min(1240px, calc(100% - 2rem)); margin-inline: auto; }
+  .site-header { min-height: 78px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #30372f; }
+  .brand { display: flex; align-items: center; gap: .75rem; text-decoration: none; font-weight: 850; letter-spacing: -.04em; }
+  .brand img { border-radius: 5px; }
+  nav { display: flex; align-items: center; gap: 1.5rem; }
+  nav a { color: #a2ac9d; text-decoration: none; font-size: .82rem; }
+  nav a:hover { color: #c8ff3d; }
+  .nav-cta { padding: .7rem 1rem; border: 1px solid #c8ff3d; color: #0b0d0c; background: #c8ff3d; font-weight: 800; }
+  .hero { display: grid; grid-template-columns: 1.06fr .94fr; gap: clamp(2rem, 6vw, 6rem); align-items: center; min-height: 710px; padding: 5rem 0; }
+  .kicker { display: flex; align-items: center; gap: .65rem; margin: 0 0 1.5rem; color: #a2ac9d; font-family: ui-monospace, monospace; font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; }
+  .kicker span { width: 24px; height: 2px; background: #c8ff3d; }
+  h1 { max-width: 750px; margin: 0; font-size: clamp(3.5rem, 7vw, 6.5rem); line-height: .92; letter-spacing: -.075em; }
+  h1 em { color: #c8ff3d; font-style: normal; }
+  .summary { max-width: 650px; margin: 2rem 0; color: #a2ac9d; font-size: clamp(1rem, 1.6vw, 1.2rem); line-height: 1.65; }
+  .actions { display: flex; gap: .8rem; }
+  .actions a { display: flex; align-items: center; justify-content: space-between; min-height: 54px; padding: 0 1.1rem; text-decoration: none; font-size: .84rem; font-weight: 800; }
+  .primary { min-width: 220px; color: #0b0d0c; background: #c8ff3d; }
+  .secondary { border: 1px solid #4a5448; color: #f2f6ec; }
+  .trust { display: flex; flex-wrap: wrap; gap: .5rem 1.4rem; margin: 2rem 0 0; padding: 0; color: #798375; font-family: ui-monospace, monospace; font-size: .68rem; list-style: none; }
+  .trust li::before { content: "✓"; margin-right: .4rem; color: #c8ff3d; }
+  .terminal { border: 1px solid #465044; box-shadow: 24px 24px 0 rgba(200,255,61,.045); background: #0e110f; font-family: ui-monospace, monospace; }
+  .terminal-bar { display: flex; justify-content: space-between; padding: .85rem 1rem; border-bottom: 1px solid #30372f; color: #798375; font-size: .68rem; }
+  .status { color: #c8ff3d; }
+  .terminal-body { padding: clamp(1rem, 3vw, 1.8rem); }
+  .prompt { color: #a2ac9d; font-size: .74rem; }
+  .result { display: grid; gap: .65rem; margin: 2rem 0 1.3rem; }
+  .label { width: fit-content; padding: .28rem .45rem; color: #0b0d0c; background: #ff7849; font-size: .65rem; font-weight: 900; }
+  .result strong { color: #ff9a78; font-size: clamp(.9rem, 1.7vw, 1.15rem); }
+  dl { margin: 0; border-block: 1px solid #30372f; }
+  dl div { display: grid; grid-template-columns: 1fr 1fr; padding: .65rem 0; border-bottom: 1px solid #202620; font-size: .72rem; }
+  dt { color: #798375; } dd { margin: 0; color: #f2f6ec; }
+  .fix { margin: 1.2rem 0; color: #cbd2c6; font-size: .73rem; line-height: 1.55; }
+  .fix span { margin-right: .6rem; color: #c8ff3d; }
+  .hashes { display: grid; grid-template-columns: 90px 1fr; gap: .5rem; color: #798375; font-size: .65rem; }
+  .hashes code { color: #a2ac9d; overflow-wrap: anywhere; }
+  .feature-grid { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid #30372f; }
+  .feature-grid article { min-height: 270px; padding: 2rem; }
+  .feature-grid article + article { border-left: 1px solid #30372f; }
+  .feature-grid article > span { color: #c8ff3d; font-family: ui-monospace, monospace; font-size: .7rem; }
+  .feature-grid h2 { margin: 4rem 0 1rem; font-size: 1.35rem; letter-spacing: -.035em; }
+  .feature-grid p, .boundary-copy p { color: #929d8e; line-height: 1.65; }
+  .boundary { display: grid; grid-template-columns: 1fr 1fr; gap: 5rem; padding: 8rem 0; }
+  .boundary h2 { max-width: 560px; margin: 0; font-size: clamp(2.5rem, 5vw, 4.5rem); line-height: .98; letter-spacing: -.06em; }
+  .boundary-copy { align-self: end; }
+  .boundary-copy a { display: inline-block; margin-top: 1rem; color: #c8ff3d; font-size: .83rem; }
+  footer { display: flex; justify-content: space-between; align-items: center; min-height: 110px; border-top: 1px solid #30372f; color: #798375; font-size: .72rem; }
+  footer > span { color: #f2f6ec; font-weight: 850; }
+  footer div { display: flex; gap: 1.2rem; }
+  @media (max-width: 850px) {
+    .hero, .boundary { grid-template-columns: 1fr; min-height: auto; }
+    .hero { padding-block: 4rem; }
+    .feature-grid { grid-template-columns: 1fr; }
+    .feature-grid article + article { border-top: 1px solid #30372f; border-left: 0; }
+  }
+  @media (max-width: 600px) {
+    .site-header nav > a:not(.nav-cta) { display: none; }
+    h1 { font-size: clamp(3rem, 15vw, 4.5rem); }
+    .actions, footer { align-items: stretch; flex-direction: column; }
+    footer { justify-content: center; padding-block: 2rem; }
+  }
+</style>

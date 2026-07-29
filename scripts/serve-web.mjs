@@ -2,20 +2,36 @@ import { createReadStream, statSync } from "node:fs";
 import { createServer } from "node:http";
 import { extname, resolve, sep } from "node:path";
 
-const webRoot = resolve("web");
+const webRoot = resolve("web", "dist");
 const port = Number(process.env.WHY712_WEB_PORT ?? 4173);
+const basePath = "/why712";
 const contentTypes = new Map([
   [".css", "text/css; charset=utf-8"],
   [".html", "text/html; charset=utf-8"],
   [".js", "text/javascript; charset=utf-8"],
   [".json", "application/json; charset=utf-8"],
+  [".svg", "image/svg+xml"],
   [".wasm", "application/wasm"],
 ]);
 
 const server = createServer((request, response) => {
   try {
     const requestUrl = new URL(request.url ?? "/", "http://localhost");
-    const relativePath = decodeURIComponent(requestUrl.pathname).replace(/^\/+/u, "");
+    if (requestUrl.pathname === "/") {
+      response.writeHead(302, { Location: `${basePath}/` });
+      response.end();
+      return;
+    }
+    if (
+      requestUrl.pathname !== basePath &&
+      !requestUrl.pathname.startsWith(`${basePath}/`)
+    ) {
+      throw new Error("path is outside configured base");
+    }
+    const relativePath = decodeURIComponent(requestUrl.pathname.slice(basePath.length)).replace(
+      /^\/+/u,
+      "",
+    );
     const candidate = resolve(webRoot, relativePath || "index.html");
     if (candidate !== webRoot && !candidate.startsWith(`${webRoot}${sep}`)) {
       throw new Error("path escapes web root");

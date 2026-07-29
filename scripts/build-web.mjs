@@ -12,9 +12,10 @@ import { fileURLToPath } from "node:url";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const webRoot = join(repositoryRoot, "web");
-const packageOutput = join(webRoot, "pkg");
+const appPublicRoot = join(webRoot, "public", "app");
+const packageOutput = join(appPublicRoot, "pkg");
 const exampleSource = join(repositoryRoot, "crates", "why712-core", "fixtures", "examples");
-const exampleOutput = join(webRoot, "examples");
+const exampleOutput = join(appPublicRoot, "examples");
 
 for (const target of [packageOutput, exampleOutput]) {
   if (existsSync(target)) {
@@ -30,7 +31,7 @@ const wasmPack = spawnSync(
     "--target",
     "web",
     "--out-dir",
-    "../../web/pkg",
+    "../../web/public/app/pkg",
     "--out-name",
     "why712_wasm",
     "--release",
@@ -55,7 +56,17 @@ for (const example of manifest) {
 }
 
 writeFileSync(
-  join(webRoot, "build.json"),
+  join(appPublicRoot, "build.json"),
   `${JSON.stringify({ schemaVersion: 1, examples: manifest.length }, null, 2)}\n`,
 );
-console.log(`Built browser package with ${manifest.length} reproducible examples.`);
+
+const astroCli = join(repositoryRoot, "node_modules", "astro", "bin", "astro.mjs");
+const astro = spawnSync(process.execPath, [astroCli, "build"], {
+  cwd: repositoryRoot,
+  stdio: "inherit",
+});
+if (astro.status !== 0) {
+  process.exit(astro.status ?? 1);
+}
+
+console.log(`Built Astro site with ${manifest.length} reproducible examples.`);

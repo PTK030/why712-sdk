@@ -67,20 +67,23 @@ The final image is a non-root distroless runtime containing only the binary and 
 libraries. See [docker/README.md](docker/README.md) for read-only file/stdin examples, exit
 codes, RPC use, and the local Anvil mainnet fork.
 
-## Run the browser demo
+## Run the browser demo and docs
 
-The demo is a static, framework-free application over the same Rust core. Build the ignored
-WASM package and copied example corpus, then serve `web/`:
+The website is a static Astro application: a product landing page, a vanilla TypeScript
+playground over the same Rust/WASM core, and public documentation powered by Starlight. Install
+the exact locked web dependencies, then build the ignored production artifact:
 
 ```bash
-node scripts/build-web.mjs
+corepack enable
+pnpm install --frozen-lockfile
+pnpm build
 node scripts/serve-web.mjs
 ```
 
-Open `http://127.0.0.1:4173/`. It provides the diagnostic form, field-by-field findings,
-intermediate hashes, one-click fixtures, Markdown copy, and fragment-only share links. No
-typed data is sent to a project backend; an outbound request occurs only when an RPC URL and
-contract are supplied.
+Open `http://127.0.0.1:4173/why712/`; the playground lives at `/why712/app/` and user docs at
+`/why712/docs/`. The playground provides field-by-field findings, intermediate hashes,
+one-click fixtures, Markdown copy, and fragment-only share links. No typed data is sent to a
+project backend; an outbound request occurs only when an RPC URL and contract are supplied.
 
 ## Commands
 

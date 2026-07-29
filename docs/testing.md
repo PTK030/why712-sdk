@@ -228,7 +228,7 @@ discard the offline report. Generated `pkg/` files are build artifacts and remai
 See `docs/development.md` for the exact `wasm-pack` commands and the Windows ChromeDriver
 version-selection caveat.
 
-`web/share.test.mjs` separately proves that fragment-only links round-trip Unicode input,
+`web/src/scripts/share.test.mjs` separately proves that fragment-only links round-trip Unicode input,
 remain URL-safe, and discard fields outside the public request shape. The static build copies
 only files referenced by the core fixture manifest; the browser never maintains a second
 example corpus.

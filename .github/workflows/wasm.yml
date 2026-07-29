@@ -8,7 +8,12 @@ on:
       - "crates/why712-wasm/**"
       - "web/**"
       - "scripts/build-web.mjs"
+      - "scripts/serve-web.mjs"
+      - "scripts/check-web-links.mjs"
       - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "astro.config.mjs"
       - "Cargo.toml"
       - "Cargo.lock"
       - "rust-toolchain.toml"
@@ -20,7 +25,12 @@ on:
       - "crates/why712-wasm/**"
       - "web/**"
       - "scripts/build-web.mjs"
+      - "scripts/serve-web.mjs"
+      - "scripts/check-web-links.mjs"
       - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "astro.config.mjs"
       - "Cargo.toml"
       - "Cargo.lock"
       - "rust-toolchain.toml"
@@ -47,11 +57,20 @@ jobs:
           node-version: 24.16.0
           package-manager-cache: false
 
+      - name: Install pinned web dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.9.0 --activate
+          pnpm install --frozen-lockfile
+
       - name: Install pinned wasm-pack
         run: cargo install wasm-pack --version 0.15.0 --locked
 
       - name: Test static application contracts
-        run: node --test web/share.test.mjs web/dom-contract.test.mjs
+        run: pnpm test:web
+
+      - name: Type-check Astro site
+        run: pnpm check:web
 
       - name: Test WASM bindings in Chrome
         run: wasm-pack test --headless --chrome crates/why712-wasm
@@ -59,10 +78,13 @@ jobs:
       - name: Build static Pages artifact
         run: node scripts/build-web.mjs
 
+      - name: Check generated routes and links
+        run: pnpm check:links
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
-          path: web
+          path: web/dist
 
   deploy:
     name: deploy GitHub Pages

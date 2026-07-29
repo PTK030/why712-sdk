@@ -1,4 +1,7 @@
 target/
+node_modules/
+.astro/
+web/dist/
 web/pkg/
 crates/why712-wasm/pkg/
 .git/
