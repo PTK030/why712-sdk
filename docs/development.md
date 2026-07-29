@@ -118,6 +118,11 @@ release profile in `crates/why712-wasm/Cargo.toml` explicitly enables those feat
 wasm-opt validation; removing those flags breaks the production build even though compilation
 and current browsers support the module.
 
+`.github/workflows/wasm.yml` runs the static contract tests, headless Chrome suite, and release
+build for relevant pull requests. On `main`, that same verified `web/` artifact is deployed to
+GitHub Pages. GitHub actions are pinned to immutable commit SHAs; update the version comment and
+SHA together after checking the action's official release.
+
 ## Repository knowledge
 
 `docs/` is stable public knowledge. `IMPLEMENTATION_PLAN.md` and `.vault/` are local working

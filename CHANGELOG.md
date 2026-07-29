@@ -20,5 +20,6 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Browser WASM bindings with fetch-based RPC fallback and generated TypeScript declarations.
 - Static diagnostic application with field-level findings, copied Markdown reports,
   fragment-only share links, and one-click examples from the shared fixture corpus.
+- Headless browser CI and GitHub Pages deployment from the same verified static artifact.
 
 [Unreleased]: https://github.com/PTK030/why712/commits/main
