@@ -6,8 +6,8 @@ why712 follows semantic versioning while pre-1.0 minor versions identify product
 - `0.2.x`: WASM bindings and browser demo;
 - `0.3.x`: ERC-1271 execution, production image, and automated distribution.
 
-Container publishing is automated; binary, GitHub Release, and crates.io publishing remain a
-checklist until the next implementation step lands.
+Container, binary, GitHub Release, and crates.io publishing are automated. The repository and
+registry authentication described below still require one-time owner configuration.
 
 ## Container publishing
 
@@ -34,6 +34,43 @@ After publishing, inspect the manifest for both architectures, verify the OCI so
 labels and attestations, then run one matching and one mismatching fixture by digest-pinned image
 reference. If an image is broken, preserve the immutable version tag, document the incident, and
 publish a fixed patch version; move `latest` only to that verified patch.
+
+## Binary and crate publishing
+
+Pushing a stable `vX.Y.Z` tag starts `.github/workflows/release.yml`. Before any irreversible
+operation, the workflow requires:
+
+- the tag to have the exact stable-semver shape `vX.Y.Z`;
+- `why712-core` and `why712` to both have version `X.Y.Z`;
+- `CHANGELOG.md` to contain a matching `## [X.Y.Z]` section.
+
+Four native runners build `x86_64-unknown-linux-gnu`, `x86_64-apple-darwin`,
+`aarch64-apple-darwin`, and `x86_64-pc-windows-msvc`. Unix archives are `.tar.gz`; Windows is
+`.zip`. Each contains the binary, README, and license. The GitHub Release also contains a
+verified `SHA256SUMS` manifest. Its curated notes come from the matching changelog section, with
+GitHub's generated comparison appended. Release creation gets `contents: write` only in its
+final job.
+
+The crates.io job publishes `why712-core`, waits up to ten minutes for that exact version to
+appear in the registry API/index, then verifies and publishes the `why712` CLI. It detects
+already-published versions so a run can safely continue after a partial failure.
+
+### One-time crates.io authentication
+
+Trusted publishing cannot claim a new crate name, so the first release needs a crates.io API
+token:
+
+1. Create a protected GitHub environment named `release`; restrict it to protected version tags
+   and require an owner approval.
+2. Add an environment secret named `CRATES_IO_TOKEN`. For the bootstrap release it must be
+   allowed to create the two new crates. Remove it after both packages exist.
+3. On crates.io, configure a trusted publisher for **each** crate with repository
+   `PTK030/why712`, workflow `release.yml`, and environment `release`.
+4. Set the GitHub environment variable `CRATES_IO_TRUSTED_PUBLISHING=true`.
+
+The official crates.io authentication action then exchanges GitHub OIDC identity for a
+short-lived token and revokes it after the job. The publish job alone receives
+`id-token: write`; no long-lived token is needed after bootstrap.
 
 ## Prepare
 
@@ -80,8 +117,9 @@ After publishing:
 - verify exit codes 0, 1, and 2;
 - verify the crates.io package links, README, license, and repository URL.
 
-When release workflows and container publishing land, add their artifact, provenance, image,
-and rollback checks here before enabling tags in automation.
+For the GitHub Release, download every archive, run `sha256sum --check SHA256SUMS`, inspect the
+archive contents, and execute the binary on its matching platform. For GHCR, also perform the
+manifest, provenance, SBOM, and digest-pinned checks in "Container publishing".
 
 ## Recovery
 

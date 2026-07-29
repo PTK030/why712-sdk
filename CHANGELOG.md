@@ -26,5 +26,6 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and unavailable outcomes.
 - Non-root distroless production image and a pinned Anvil mainnet-fork Compose service.
 - Multi-architecture GHCR workflow with semver/latest tags, provenance, SBOM, and GHA caching.
+- Native binary, checksum, GitHub Release, and ordered crates.io publishing automation.
 
 [Unreleased]: https://github.com/PTK030/why712/commits/main

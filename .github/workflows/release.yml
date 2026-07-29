@@ -1,0 +1,218 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  validate:
+    name: validate release
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Match tag, package versions, and changelog
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Release tags must have the form vX.Y.Z."
+            exit 1
+          fi
+
+          version="${GITHUB_REF_NAME#v}"
+          versions="$(
+            cargo metadata --no-deps --format-version 1 |
+              jq -r '.packages[]
+                | select(.name == "why712" or .name == "why712-core")
+                | .version' |
+              sort -u
+          )"
+
+          if [[ "$versions" != "$version" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match the publishable package version."
+            printf 'package versions:\n%s\n' "$versions"
+            exit 1
+          fi
+
+          if ! grep -Fq "## [$version]" CHANGELOG.md; then
+            echo "::error::CHANGELOG.md has no release section for $version."
+            exit 1
+          fi
+
+  build:
+    name: build (${{ matrix.target }})
+    needs: validate
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+          - os: macos-15
+            target: aarch64-apple-darwin
+          - os: windows-2025
+            target: x86_64-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install target
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Build release binary
+        run: cargo build --locked --release -p why712 --target ${{ matrix.target }}
+
+      - name: Package Unix binary
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          asset="why712-${GITHUB_REF_NAME}-${{ matrix.target }}"
+          mkdir -p dist package
+          cp "target/${{ matrix.target }}/release/why712" package/
+          cp README.md LICENSE package/
+          tar -C package -czf "dist/${asset}.tar.gz" why712 README.md LICENSE
+
+      - name: Package Windows binary
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $asset = "why712-$env:GITHUB_REF_NAME-${{ matrix.target }}"
+          New-Item -ItemType Directory -Force dist, package | Out-Null
+          Copy-Item "target\${{ matrix.target }}\release\why712.exe" package\
+          Copy-Item README.md, LICENSE package\
+          Compress-Archive -Path package\* -DestinationPath "dist\$asset.zip"
+
+      - name: Upload release archive
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish-crates:
+    name: publish crates.io packages
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Authenticate with crates.io trusted publishing
+        if: vars.CRATES_IO_TRUSTED_PUBLISHING == 'true'
+        id: crates_auth
+        uses: rust-lang/crates-io-auth-action@bbd81622f20ce9e2dd9622e3218b975523e45bbe # v1.0.4
+
+      - name: Publish core, wait for the index, then publish CLI
+        shell: bash
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.crates_auth.outputs.token || secrets.CRATES_IO_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+
+          if [[ -z "${CARGO_REGISTRY_TOKEN:-}" ]]; then
+            echo "::error::Configure trusted publishing or the bootstrap CRATES_IO_TOKEN."
+            exit 1
+          fi
+
+          crate_exists() {
+            curl --fail --silent --show-error \
+              "https://crates.io/api/v1/crates/$1/$version" >/dev/null
+          }
+
+          if crate_exists why712-core; then
+            echo "why712-core $version is already published; continuing an interrupted release."
+          else
+            cargo publish --locked --dry-run -p why712-core
+            cargo publish --locked -p why712-core
+          fi
+
+          core_visible=false
+          for attempt in {1..40}; do
+            if cargo info "why712-core@$version" >/dev/null 2>&1; then
+              core_visible=true
+              break
+            fi
+            echo "Waiting for why712-core $version to resolve from the Cargo index ($attempt/40)."
+            sleep 15
+          done
+
+          if [[ "$core_visible" != true ]]; then
+            echo "::error::why712-core $version did not reach the registry index in time."
+            exit 1
+          fi
+
+          if crate_exists why712; then
+            echo "why712 $version is already published; nothing remains to upload."
+          else
+            cargo publish --locked --dry-run -p why712
+            cargo publish --locked -p why712
+          fi
+
+  release:
+    name: publish GitHub Release
+    needs: [build, publish-crates]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Download release archives
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+
+      - name: Create SHA-256 manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum why712-* > SHA256SUMS
+          sha256sum --check SHA256SUMS
+
+      - name: Extract curated release notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          awk -v heading="## [$version]" '
+            $0 == heading { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if [[ ! -s release-notes.md ]]; then
+            echo "::error::The changelog section for $version is empty."
+            exit 1
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@fe965f7af51af5f2602596916f38a38df2e33de0 # v3.0.2
+        with:
+          files: dist/*
+          fail_on_unmatched_files: true
+          body_path: release-notes.md
+          generate_release_notes: true
+          make_latest: true
