@@ -59,6 +59,10 @@ what survives in the code; the reason for it is what gets lost.
 Use `.agents/skills/why712-workflow/SKILL.md` when continuing implementation, maintenance,
 research, or release work in this repository.
 
+Use `.agents/skills/keep-docs-current/SKILL.md` for every feature, public behavior change, PR,
+or release. Update affected canonical and public docs in the same change, or record a concrete
+`Documentation impact: none` rationale in the PR.
+
 Do not guess when a fact is absent from local docs or may have changed. Inspect the exact pinned
 dependency source first, then consult current primary sources such as the applicable EIP/ERC,
 official Rust or crate documentation, or the upstream repository. Promote durable conclusions

@@ -54,6 +54,9 @@ cargo check -p why712-core --target wasm32-unknown-unknown
 
 - Put code-level facts next to the code, stable system/process knowledge in `docs/`, and
   in-flight state in `.vault/`.
+- For every feature, public behavior change, PR, or release, run the
+  `keep-docs-current` skill before final verification. Update affected docs in the same change
+  or record a concrete no-impact rationale.
 - Create or update a focused skill under `.agents/skills/` when a workflow is likely to recur,
   has non-obvious ordered steps, or packages project knowledge another agent should apply
   automatically. Do not create a skill for a one-off fact or a workflow already clear in

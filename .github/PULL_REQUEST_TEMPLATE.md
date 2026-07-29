@@ -6,6 +6,10 @@
 
 <!-- Link the issue, EIP/ERC, pinned dependency source, or reproducible case. -->
 
+## Documentation impact
+
+<!-- List updated canonical/public docs, or write "None" and explain why. -->
+
 ## Verification
 
 - [ ] `cargo fmt --all -- --check`
@@ -15,6 +19,8 @@
 - [ ] New or changed behavior has a test.
 - [ ] Every new `FindingCode` has a matching `docs/diagnostics.md` entry.
 - [ ] Durable architecture, interoperability, or workflow knowledge is documented.
+- [ ] Affected canonical, public, and translated docs are updated, or the documentation impact
+      section explains why no update is needed.
 
 ## Safety
 

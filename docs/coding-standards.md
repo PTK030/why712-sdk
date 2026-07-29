@@ -18,6 +18,17 @@ For testing rules see [testing.md](testing.md). For the diagnostic-code catalog 
   diff and make the real change unreviewable. Put them in `.vault/BACKLOG.md` as a `T-…`.
 - **No barrel modules that only re-export.** Import from the source.
 
+## Documentation is part of the change
+
+A feature, public behavior change, deprecation, contributor workflow change, or release is not
+complete while its documentation describes the previous state. Update the owning canonical and
+public docs in the same branch and pull request as the implementation.
+
+Use `.agents/skills/keep-docs-current/SKILL.md` to audit the documentation surface before final
+verification. If a change genuinely has no documentation impact, the pull request must say
+`Documentation impact: none` and explain why. Do not make a meaningless documentation edit only
+to satisfy the checklist.
+
 ## Comments
 
 - Delete any comment whose removal loses zero information. Comments explain *why*, not *what*.

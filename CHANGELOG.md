@@ -15,6 +15,8 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   commercial licensing.
 - Added Polish, Simplified Chinese, and Japanese README translations.
 - Added focused agent skills for diagnostics, fixture research, and releases.
+- Added a documentation-sync skill and PR contract so features, public behavior changes, and
+  releases update affected docs in the same change.
 - Improved container build caching, GHCR usage guidance, and superseded-main-run cancellation.
 
 ### Added

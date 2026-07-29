@@ -1,0 +1,4 @@
+interface:
+  display_name: "Keep why712 docs current"
+  short_description: "Update docs alongside features, PRs, and releases"
+  default_prompt: "Use $keep-docs-current to audit this change and update every affected why712 documentation surface."
