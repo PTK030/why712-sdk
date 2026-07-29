@@ -51,6 +51,12 @@ impl DomainSeparator {
 pub struct Digest(B256);
 
 impl Digest {
+    /// Creates a digest from an already computed 32-byte hash.
+    #[must_use]
+    pub const fn from_b256(value: B256) -> Self {
+        Self(value)
+    }
+
     /// Returns the underlying 32-byte value.
     #[must_use]
     pub const fn as_b256(&self) -> &B256 {

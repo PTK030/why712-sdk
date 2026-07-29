@@ -6,7 +6,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use alloy_primitives::Address;
+use alloy_primitives::{Address, B256};
 use serde::Deserialize;
 use why712_core::{Digest, ParsedSignature, RecoveryEncoding, SignatureFormat, TypedDataDocument};
 
@@ -18,6 +18,7 @@ struct Example {
     typed_data: String,
     signature: Option<String>,
     signer: Option<String>,
+    signed_digest: Option<String>,
     fault: Option<String>,
 }
 
@@ -40,10 +41,15 @@ fn example_manifest_is_self_contained_and_computable() -> Result<(), Box<dyn std
             assert!(!fault.trim().is_empty());
         }
         assert_eq!(example.signature.is_some(), example.signer.is_some());
-        if let (Some(signature), Some(signer)) = (&example.signature, &example.signer) {
+        assert_eq!(example.signature.is_some(), example.signed_digest.is_some());
+        if let (Some(signature), Some(signer), Some(signed_digest)) =
+            (&example.signature, &example.signer, &example.signed_digest)
+        {
             assert!(signature.starts_with("0x"));
             let signature = ParsedSignature::parse_hex(signature)?;
             let signer: Address = signer.parse()?;
+            let signed_digest = Digest::from_b256(signed_digest.parse::<B256>()?);
+            assert_eq!(signature.recover_address(&signed_digest), Some(signer));
 
             match example.id.as_str() {
                 "wrong-chain-id" | "wrong-field-order" => {}
@@ -68,7 +74,15 @@ fn example_manifest_is_self_contained_and_computable() -> Result<(), Box<dyn std
             let typed_data_json = fs::read_to_string(&typed_data_path)?;
             let values = TypedDataDocument::parse_json(&typed_data_json)?.compute()?;
             let recovered = signature.recover_address(&values.digest);
-            if matches!(example.id.as_str(), "wrong-chain-id" | "wrong-field-order") {
+            if matches!(
+                example.id.as_str(),
+                "wrong-chain-id"
+                    | "wrong-field-order"
+                    | "encode-packed"
+                    | "permit2-version"
+                    | "missing-salt"
+                    | "width-mismatch"
+            ) {
                 assert_ne!(recovered, Some(signer));
             } else {
                 assert_eq!(recovered, Some(signer));

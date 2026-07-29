@@ -1,0 +1,27 @@
+{
+  "types": {
+    "EIP712Domain": [
+      { "name": "name", "type": "string" },
+      { "name": "version", "type": "string" },
+      { "name": "chainId", "type": "uint256" },
+      { "name": "verifyingContract", "type": "address" }
+    ],
+    "Authorization": [
+      { "name": "account", "type": "address" },
+      { "name": "scope", "type": "bytes32" },
+      { "name": "nonce", "type": "uint256" }
+    ]
+  },
+  "primaryType": "Authorization",
+  "domain": {
+    "name": "Salted Authorization",
+    "version": "1",
+    "chainId": 1,
+    "verifyingContract": "0x2222222222222222222222222222222222222222"
+  },
+  "message": {
+    "account": "0x3333333333333333333333333333333333333333",
+    "scope": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "nonce": 42
+  }
+}

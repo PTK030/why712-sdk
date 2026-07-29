@@ -79,14 +79,38 @@ Specifications last checked on 2026-07-29.
   to `why712 --typed-data`;
 - `manifest.json` supplies presentation metadata, the optional signature and signer, and a
   machine-readable fault name;
+- every signed entry records `signedDigest`, so tests prove both that the signature belongs to
+  the expected signer and, for a broken typed-data document, that its canonical digest does not
+  verify that signature;
 - `fault: null` denotes a valid control case;
-- signature and signer are either both present or both absent.
+- signature, signer, and signed digest are either all present or all absent.
 
 `tests/fixtures.rs` rejects duplicate IDs, empty metadata, path traversal, malformed signatures
 or addresses, missing files, invalid typed data, and examples that cannot be hashed. It proves
 that wrong-chain-ID and wrong-field-order cases differ from their valid control digest, and
 checks signer recovery plus signature classification for canonical, raw-`v`, high-S, and
 ERC-2098 examples.
+
+The corpus's independently generated cases use the public Anvil development key
+`0xac0974…ff80` (address `0xf39F…2266`) and pinned Viem 2.45.0. They cover:
+
+- `abi.encodePacked` applied to a primary struct instead of EIP-712's 32-byte field encoding;
+- the Permit2 domain with an unexpected `version`;
+- a domain whose signed form contains a `bytes32 salt` omitted by the supplied document;
+- Permit2 detail fields widened from `uint160`/`uint48` to `uint256`.
+
+For the packed case, Viem independently produced:
+
+| Value | Expected |
+|---|---|
+| domain separator | `0x2e667b98e0fd80dec52c40795f5f78feff691534aab0743c9639568d4bea26af` |
+| `Payment` type hash | `0x477aa8c025938ae0e68308ba65cb20d25ab38ce00aeb930ff8fec11ab5f3e63a` |
+| packed struct hash | `0x252753f9591304025d6e755c74f44397277f11ef131559372f73a8875424c911` |
+| signed digest | `0x71d31fd1a44c6681123136d7726e4f10baf874fc9d2f5ee77d41c29885c633d3` |
+
+Fixture signatures and hashes last regenerated and checked on 2026-07-29. Viem and the
+development private key are test-vector tooling only; neither is a project dependency or a
+production secret.
 
 ## Required checks
 

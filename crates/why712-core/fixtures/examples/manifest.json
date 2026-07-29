@@ -5,6 +5,7 @@
     "typedData": "valid-mail.json",
     "signature": "0x4355c47d63924e8a72e509b65029052eb6c299d53a04e167c5775fd466751c9d07299936d304c153f6443dfa05f40ff007d72911b6f72307f996231605b915621c",
     "signer": "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826",
+    "signedDigest": "0xbe609aee343fb3c4b28e1df9e632fca64fcfaede20f02e86244efddf30957bd2",
     "fault": null
   },
   {
@@ -13,6 +14,7 @@
     "typedData": "wrong-chain-id.json",
     "signature": "0x4355c47d63924e8a72e509b65029052eb6c299d53a04e167c5775fd466751c9d07299936d304c153f6443dfa05f40ff007d72911b6f72307f996231605b915621c",
     "signer": "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826",
+    "signedDigest": "0xbe609aee343fb3c4b28e1df9e632fca64fcfaede20f02e86244efddf30957bd2",
     "fault": "wrong-chain-id"
   },
   {
@@ -21,6 +23,7 @@
     "typedData": "wrong-field-order.json",
     "signature": "0x4355c47d63924e8a72e509b65029052eb6c299d53a04e167c5775fd466751c9d07299936d304c153f6443dfa05f40ff007d72911b6f72307f996231605b915621c",
     "signer": "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826",
+    "signedDigest": "0xbe609aee343fb3c4b28e1df9e632fca64fcfaede20f02e86244efddf30957bd2",
     "fault": "wrong-field-order"
   },
   {
@@ -29,6 +32,7 @@
     "typedData": "valid-mail.json",
     "signature": "0x4355c47d63924e8a72e509b65029052eb6c299d53a04e167c5775fd466751c9d07299936d304c153f6443dfa05f40ff007d72911b6f72307f996231605b9156201",
     "signer": "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826",
+    "signedDigest": "0xbe609aee343fb3c4b28e1df9e632fca64fcfaede20f02e86244efddf30957bd2",
     "fault": "raw-v"
   },
   {
@@ -37,6 +41,7 @@
     "typedData": "valid-mail.json",
     "signature": "0x4355c47d63924e8a72e509b65029052eb6c299d53a04e167c5775fd466751c9df8d666c92cfb3eac09bbc205fa0bf00eb2d7b3d4f8517d33c63c3b76ca7d2bdf1b",
     "signer": "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826",
+    "signedDigest": "0xbe609aee343fb3c4b28e1df9e632fca64fcfaede20f02e86244efddf30957bd2",
     "fault": "high-s"
   },
   {
@@ -45,7 +50,44 @@
     "typedData": "valid-mail.json",
     "signature": "0x4355c47d63924e8a72e509b65029052eb6c299d53a04e167c5775fd466751c9d87299936d304c153f6443dfa05f40ff007d72911b6f72307f996231605b91562",
     "signer": "0xCD2a3d9F938E13CD947Ec05AbC7FE734Df8DD826",
+    "signedDigest": "0xbe609aee343fb3c4b28e1df9e632fca64fcfaede20f02e86244efddf30957bd2",
     "fault": null
+  },
+  {
+    "id": "encode-packed",
+    "title": "Primary struct encoded with abi.encodePacked",
+    "typedData": "encode-packed.json",
+    "signature": "0x6e8683e5274fd88ac427179b8258d4fe3b0ff1cef3e123a56a15b0daf2d113135e69c2740fb9add993181afc61f9baddff27fa339c4639446a4ea7f8b8feacb61c",
+    "signer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "signedDigest": "0x71d31fd1a44c6681123136d7726e4f10baf874fc9d2f5ee77d41c29885c633d3",
+    "fault": "encode-packed"
+  },
+  {
+    "id": "permit2-version",
+    "title": "Unexpected version in a Permit2 domain",
+    "typedData": "permit2-version.json",
+    "signature": "0xf6c5e172da1e741538652e6ef9f7743c52155d596c8be6a1f1bd05c1487db44367124f7a079bada60d75f502417007b90122cd3b7e5581fa397ba60e2dca1c9d1b",
+    "signer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "signedDigest": "0xc1c346f90e308ec6fd2e15eab2d7c8ad33dbb88fb8cd5acae0306d4abfb199de",
+    "fault": "unexpected-domain-version"
+  },
+  {
+    "id": "missing-salt",
+    "title": "Missing domain salt",
+    "typedData": "missing-salt.json",
+    "signature": "0xff5feaa9f213578935847cbf2d653307b8ec61d470b4ac84ba4b5237f1f41c82037b312fd8e5f7052a5ef53418966c1b1be5b9dd3120fb6511155dea58d7dc801b",
+    "signer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "signedDigest": "0xc7e35b34ad6a43bfe70edafd3563d8dbb065b75834a9d48effd1447d17d35a1b",
+    "fault": "missing-domain-salt"
+  },
+  {
+    "id": "width-mismatch",
+    "title": "Permit2 fields widened from uint160 and uint48",
+    "typedData": "width-mismatch.json",
+    "signature": "0xf6c5e172da1e741538652e6ef9f7743c52155d596c8be6a1f1bd05c1487db44367124f7a079bada60d75f502417007b90122cd3b7e5581fa397ba60e2dca1c9d1b",
+    "signer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "signedDigest": "0xc1c346f90e308ec6fd2e15eab2d7c8ad33dbb88fb8cd5acae0306d4abfb199de",
+    "fault": "integer-width-mismatch"
   },
   {
     "id": "numeric-precision-loss",
@@ -53,6 +95,7 @@
     "typedData": "numeric-precision-loss.json",
     "signature": null,
     "signer": null,
+    "signedDigest": null,
     "fault": "numeric-precision-loss"
   }
 ]
