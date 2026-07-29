@@ -14,6 +14,8 @@ keywords = ["ethereum", "eip712", "permit", "signature", "debugging"]
 categories = ["cryptography::cryptocurrencies", "command-line-utilities"]
 
 [workspace.dependencies]
+why712-core = { path = "crates/why712-core", version = "0.1.0" }
+
 # EIP-712 engine. We deliberately do not implement hashing ourselves: for a tool whose
 # purpose is telling people their hashing is wrong, a bug in its own hashing is the worst
 # possible failure. alloy-dyn-abi exposes every intermediate we need to report.

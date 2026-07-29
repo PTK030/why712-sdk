@@ -17,7 +17,7 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 # No `rpc` feature: the native transport would drag alloy's provider stack and tokio into the
 # wasm build. This crate implements the same ChainClient over window.fetch instead.
-why712-core = { path = "../why712-core", version = "0.1.0" }
+why712-core.workspace = true
 wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true
 serde-wasm-bindgen.workspace = true
