@@ -16,10 +16,12 @@
 
 pub mod eip712;
 pub mod error;
+pub mod report;
 pub mod signature;
 
 pub use eip712::{
     ComputedValues, Digest, DomainSeparator, StructHash, TypeHash, TypedDataDocument,
 };
 pub use error::{Error, Result};
+pub use report::{Finding, FindingCode, REPORT_SCHEMA_VERSION, Report, Severity, Verdict};
 pub use signature::{ParsedSignature, RecoveryEncoding, SignatureFormat};

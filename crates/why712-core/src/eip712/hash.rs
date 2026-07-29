@@ -2,7 +2,7 @@
 
 use alloy_dyn_abi::eip712::TypedData;
 use alloy_primitives::B256;
-use serde::Serialize;
+use serde::{Serialize, Serializer};
 
 use crate::{Error, Result};
 
@@ -73,6 +73,7 @@ pub struct ComputedValues {
     /// Hash of [`Self::encode_type`].
     pub type_hash: TypeHash,
     /// Encoded message fields, without the type hash.
+    #[serde(serialize_with = "serialize_hex_bytes")]
     pub encode_data: Vec<u8>,
     /// Hash of the type hash followed by [`Self::encode_data`].
     pub struct_hash: StructHash,
@@ -144,6 +145,13 @@ impl TypedDataDocument {
             digest,
         })
     }
+}
+
+fn serialize_hex_bytes<S>(value: &[u8], serializer: S) -> core::result::Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    serializer.serialize_str(&format!("0x{}", hex::encode(value)))
 }
 
 fn shape_error(source: &alloy_dyn_abi::Error) -> Error {
