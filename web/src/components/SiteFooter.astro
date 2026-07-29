@@ -1,0 +1,20 @@
+---
+interface Props {
+  base: string;
+}
+
+const { base } = Astro.props;
+---
+
+<footer class="site-footer">
+  <div>
+    <a class="site-footer__brand" href={base}>why712</a>
+    <p>EIP-712 signature diagnostics, locally in your browser or terminal.</p>
+  </div>
+  <nav aria-label="Footer navigation">
+    <a href={`${base}docs/guides/privacy/`}>Privacy</a>
+    <a href={`${base}docs/reference/findings/`}>Finding codes</a>
+    <a href={`${base}docs/commercial-license/`}>License</a>
+    <a href="https://github.com/PTK030/why712">Source</a>
+  </nav>
+</footer>

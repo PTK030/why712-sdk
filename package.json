@@ -8,7 +8,7 @@
     "build:site": "astro build",
     "dev": "astro dev",
     "preview": "astro preview",
-    "test:web": "node --test web/src/scripts/share.test.mjs web/src/scripts/dom-contract.test.mjs",
+    "test:web": "node --test web/src/scripts/share.test.mjs web/src/scripts/dom-contract.test.mjs web/src/scripts/design-contract.test.mjs",
     "check:web": "astro check",
     "check:links": "node scripts/check-web-links.mjs"
   },

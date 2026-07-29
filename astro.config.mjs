@@ -30,16 +30,36 @@ export default defineConfig({
           items: [
             { label: "Overview", slug: "docs/guides/overview" },
             { label: "Getting started", slug: "docs/guides/getting-started" },
-            { label: "Browser playground", link: "/app/" },
+            { label: "Browser playground", slug: "docs/guides/browser" },
           ],
         },
         {
-          label: "Use why712",
+          label: "Guides",
           items: [
-            { label: "CLI reference", slug: "docs/guides/cli" },
-            { label: "RPC and contract evidence", slug: "docs/guides/rpc" },
+            { label: "Use contract evidence", slug: "docs/guides/rpc" },
+            { label: "Use why712 in CI", slug: "docs/guides/ci" },
             { label: "Privacy and security", slug: "docs/guides/privacy" },
+          ],
+        },
+        {
+          label: "Understand",
+          items: [
+            { label: "The EIP-712 pipeline", slug: "docs/concepts/eip712-pipeline" },
+            { label: "How to read a report", slug: "docs/concepts/report" },
+          ],
+        },
+        {
+          label: "Reference",
+          items: [
+            { label: "CLI", slug: "docs/guides/cli" },
             { label: "Finding codes", slug: "docs/reference/findings" },
+            { label: "Report schema", slug: "docs/reference/report-schema" },
+            { label: "Limits", slug: "docs/reference/limits" },
+          ],
+        },
+        {
+          label: "Project",
+          items: [
             { label: "Commercial licensing", slug: "docs/commercial-license" },
           ],
         },

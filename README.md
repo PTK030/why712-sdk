@@ -11,7 +11,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-blue.svg" alt="PolyForm Noncommercial 1.0.0"></a>
 </p>
 
-<p align="center">Find out why an EIP-712 signature does not verify.</p>
+<p align="center">When local signature recovery succeeds but the contract rejects it, find out why.</p>
 
 <p align="center"><img src="assets/demo.gif" alt="why712 diagnosing a wrong EIP-712 chain ID" width="100%"></p>
 
@@ -23,6 +23,9 @@
 why712 computes every EIP-712 intermediate, recovers the signer, and searches a bounded set of
 common signing mistakes. When an RPC endpoint is supplied, it reads the contract's actual domain
 through ERC-5267 or `DOMAIN_SEPARATOR()` and records exactly which fallback was used.
+
+Recognized EIP-2612 and Permit2 messages are also compared with the contract's nonce and the
+observed block timestamp. EIP-2612 verification can be simulated with a read-only call.
 
 - Root-cause findings for wrong chain IDs, domain fields, field order, integer widths, packed
   encoding, unhashed dynamic values, missing `0x1901`, bare struct hashes, and `personal_sign`.

@@ -3,15 +3,20 @@ title: Getting started
 description: Run your first offline EIP-712 diagnosis in the browser, from source, or with Docker.
 ---
 
-## Browser
+## Start in the browser
 
-Open the [diagnostic playground](/why712/app/), select a reproducible case, and choose
-**Diagnose signature**. Clear the RPC field to guarantee an offline run.
+1. Open the [diagnostic playground](/why712/app/).
+2. Choose **Wrong chain ID** under **Load an example**.
+3. Select **Diagnose signature**.
+4. Read the first finding and compare the expected and signed chain IDs.
 
 Never paste a private key or seed phrase. why712 only needs typed data, a public signature, and
 optionally the expected signer.
 
-## Run from source
+Clear the RPC field to guarantee an offline run. See the complete
+[browser guide](/why712/docs/guides/browser/) for wallet requests, sharing, and contract evidence.
+
+## Run the same case from source
 
 Rust 1.97 is pinned by the repository:
 
@@ -31,7 +36,7 @@ Install the current checkout:
 cargo install --path crates/why712-cli --locked
 ```
 
-## Docker
+## Run with Docker
 
 ```bash
 docker pull ghcr.io/ptk030/why712:latest

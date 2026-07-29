@@ -23,6 +23,9 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Report schema v2 context, `eth_signTypedData_v4` input, block timestamps, stateful EIP-2612
+  and Permit2 findings, read-only EIP-2612 simulation, and ERC-6492 wrapper detection.
+
 - Pure EIP-712 parsing and intermediate computation through Alloy.
 - Canonical and ERC-2098 signature parsing, recovery, and scalar diagnostics.
 - Bounded root-cause search across common domain, type, encoding, and envelope mistakes.

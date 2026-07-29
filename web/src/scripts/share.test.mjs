@@ -8,6 +8,7 @@ test("share fragments round-trip unicode input without leaking unknown fields", 
     typedData: '{"message":{"note":"Zażółć 🧪"}}',
     signature: "0x1234",
     chainId: "1",
+    rpcUrl: "https://provider.example/secret-project-key",
     ignored: "do not include",
   };
 
@@ -18,6 +19,7 @@ test("share fragments round-trip unicode input without leaking unknown fields", 
     signature: input.signature,
     chainId: input.chainId,
   });
+  assert.doesNotMatch(encoded, /secret-project-key/u);
 });
 
 test("empty fragments do not produce state", () => {

@@ -6,13 +6,14 @@
   <a href="README.md">English</a> · Polski · <a href="README.zh-CN.md">简体中文</a> · <a href="README.ja.md">日本語</a>
 </p>
 
-<p align="center">Dowiedz się, dlaczego podpis EIP-712 nie przechodzi weryfikacji.</p>
+<p align="center">Gdy podpis działa lokalnie, ale kontrakt go odrzuca, dowiedz się dlaczego.</p>
 
 ### [Wypróbuj w przeglądarce](https://ptk030.github.io/why712/) — bez instalacji i backendu
 
 why712 oblicza wszystkie wartości pośrednie EIP-712, odzyskuje adres podpisującego i przeszukuje
 ograniczony zestaw typowych błędów podpisywania. Po podaniu endpointu RPC odczytuje prawdziwą
 domenę kontraktu przez ERC-5267 lub `DOMAIN_SEPARATOR()` i dokładnie wskazuje użyty fallback.
+Rozpoznane wiadomości EIP-2612 i Permit2 porównuje też z nonce kontraktu i czasem bloku.
 
 - Diagnozuje m.in. zły chain ID, pola domeny, kolejność pól, szerokości liczb, `encodePacked`,
   niehaszowane wartości dynamiczne, brak `0x1901`, goły hash struktury i `personal_sign`.

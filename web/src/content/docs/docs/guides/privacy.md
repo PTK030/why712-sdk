@@ -11,6 +11,7 @@ endpoint.
 
 Share links store input in the URL fragment. Browsers do not send fragments in HTTP requests,
 but anyone receiving the link can read its contents. Review typed data before sharing.
+RPC URLs are deliberately excluded because provider URLs can contain project credentials.
 
 ## Optional network boundary
 

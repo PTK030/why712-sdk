@@ -1,125 +1,75 @@
 ---
+import SiteFooter from "../components/SiteFooter.astro";
+import SiteHeader from "../components/SiteHeader.astro";
+import "../styles/site.css";
+import "../styles/playground.css";
+
 const base = `${import.meta.env.BASE_URL}/`;
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta
       name="description"
       content="Diagnose EIP-712 signature mismatches locally in your browser."
-    >
-    <meta name="color-scheme" content="dark">
-    <title>why712 — EIP-712 signature diagnostics</title>
-    <link rel="stylesheet" href={`${base}app/style.css`}>
+    />
+    <meta name="theme-color" content="#f4f4f0" />
+    <link rel="icon" href={`${base}favicon.svg`} type="image/svg+xml" />
+    <title>Playground — why712</title>
   </head>
   <body>
-    <header class="app-bar">
-      <a class="wordmark" href={base} aria-label="why712 home">
-        <span class="wordmark-mark" aria-hidden="true">w?</span>
-        <span>why712</span>
-      </a>
-      <p class="privacy-note">
-        Local by default. No account, telemetry, wallet, or backend.
-      </p>
-      <nav class="top-links" aria-label="Primary">
-        <a class="source-link" href={`${base}docs/guides/overview/`}>Docs</a>
-        <a class="source-link" href="https://github.com/PTK030/why712">Source</a>
-        <a class="console-link" href="#console">Open console</a>
-      </nav>
-    </header>
+    <SiteHeader base={base} active="app" compact />
 
-    <main>
-      <section class="hero" aria-labelledby="page-title">
-        <div class="hero-copy">
-          <p class="eyebrow">EIP-712 diagnostic console</p>
-          <h1 id="page-title">Find the field that breaks verification.</h1>
-          <p class="hero-summary">
-            Paste typed data and a signature. why712 recomputes every intermediate, recovers the
-            signer, and tests bounded hypotheses in the same Rust core as the CLI.
-          </p>
-          <div class="hero-actions">
-            <a class="hero-primary" href="#console">Diagnose a signature <span>→</span></a>
-            <a class="hero-secondary" href="https://github.com/PTK030/why712#run-from-source">
-              Run the CLI
-            </a>
-          </div>
-        </div>
-
-        <aside class="hero-proof" aria-label="Execution guarantees">
-          <p class="proof-label">What crosses the boundary</p>
-          <div class="proof-row">
-            <span>Typed data</span>
-            <strong>Nothing</strong>
-          </div>
-          <div class="proof-row">
-            <span>Diagnosis</span>
-            <strong>Local WASM</strong>
-          </div>
-          <div class="proof-row">
-            <span>Optional evidence</span>
-            <strong>Your RPC</strong>
-          </div>
-          <p class="proof-note">No backend · no wallet · no telemetry</p>
-        </aside>
-      </section>
-
-      <section class="capabilities" aria-label="How why712 helps">
-        <article>
-          <span>01 / Inspect</span>
-          <h2>Every hash, exposed.</h2>
-          <p>See the type hash, struct hash, domain separator, digest, and recovered signer.</p>
-        </article>
-        <article>
-          <span>02 / Explain</span>
-          <h2>A cause, not a red light.</h2>
-          <p>Bounded hypotheses identify the exact domain, encoding, type, or signature mistake.</p>
-        </article>
-        <article>
-          <span>03 / Verify</span>
-          <h2>The contract gets a vote.</h2>
-          <p>Optionally compare against ERC-5267 and <code>DOMAIN_SEPARATOR()</code> over your RPC.</p>
-        </article>
-      </section>
-
-      <section id="console" class="console-intro" aria-labelledby="console-title">
+    <main class="playground">
+      <header class="playground__intro">
         <div>
-          <p class="eyebrow">Try it now</p>
-          <h2 id="console-title">Reproduce the failure.</h2>
+          <p class="eyebrow">Browser playground</p>
+          <h1>Diagnose an EIP-712 signature.</h1>
         </div>
         <p>
-          Start with a bundled case or paste your own input. Private keys and seed phrases never
-          belong here.
+          Processing happens locally with WebAssembly. A network request is made only when you
+          provide both a contract and an RPC endpoint.
         </p>
-      </section>
+      </header>
 
       <section class="workspace" aria-label="Diagnostic workspace">
         <form id="diagnose-form" class="input-panel">
           <div class="panel-heading">
             <div>
-              <span class="step">01</span>
-              <h2>Inputs</h2>
+              <span class="step">Input</span>
+              <h2>Signature data</h2>
             </div>
             <button id="clear-button" class="text-button" type="button">Clear</button>
           </div>
 
+          <div class="format-row">
+            <label class="field">
+              <span>Input format</span>
+              <select id="input-format" name="inputFormat">
+                <option value="typed-data">Typed data</option>
+                <option value="wallet-request">Wallet request (eth_signTypedData_v4)</option>
+              </select>
+            </label>
+          </div>
+
           <div class="example-strip" aria-labelledby="examples-label">
-            <p id="examples-label">Reproducible cases</p>
+            <p id="examples-label">Load an example</p>
             <div id="example-list" class="example-list" aria-live="polite">
               <span class="loading-label">Loading examples…</span>
             </div>
           </div>
 
           <label class="field field-large">
-            <span>EIP-712 typed data <strong>required</strong></span>
+            <span id="typed-data-label">EIP-712 typed data <strong>required</strong></span>
             <textarea
               id="typed-data"
               name="typedData"
               rows="17"
               spellcheck="false"
-              placeholder='{ "types": { … }, "primaryType": "Permit", "domain": { … }, "message": { … } }'
+              placeholder='{"types":{…},"primaryType":"…","domain":{…},"message":{…}}'
               required
             ></textarea>
           </label>
@@ -141,7 +91,7 @@ const base = `${import.meta.env.BASE_URL}/`;
           </div>
 
           <details class="network-options">
-            <summary>Optional chain evidence</summary>
+            <summary>Optional contract evidence</summary>
             <div class="field-grid network-fields">
               <label class="field">
                 <span>RPC endpoint</span>
@@ -153,9 +103,18 @@ const base = `${import.meta.env.BASE_URL}/`;
                   placeholder="https://your-endpoint.example"
                 >
                 <small>
-                  Only this endpoint is contacted, directly from your browser. PublicNode is
-                  browser-tested; you can replace it or clear it for offline mode.
+                  Contacted directly from this tab. Clear the field to keep the diagnosis offline.
                 </small>
+              </label>
+              <label class="field">
+                <span>ERC-6492 validator <small>optional</small></span>
+                <input
+                  id="erc6492-validator"
+                  name="erc6492Validator"
+                  type="text"
+                  spellcheck="false"
+                  placeholder="0x…"
+                >
               </label>
               <label class="field">
                 <span>Candidate chain ID</span>
@@ -176,22 +135,21 @@ const base = `${import.meta.env.BASE_URL}/`;
         <section class="result-panel" aria-labelledby="result-title">
           <div class="panel-heading">
             <div>
-              <span class="step">02</span>
+              <span class="step">Result</span>
               <h2 id="result-title">Diagnosis</h2>
             </div>
-            <span id="engine-status" class="engine-status">Engine loading</span>
+            <span id="engine-status" class="engine-status">Loading engine</span>
           </div>
 
           <div id="empty-result" class="empty-result">
-            <span class="empty-glyph" aria-hidden="true">?</span>
             <h3>No report yet</h3>
-            <p>Select an example or paste your own request, then run the diagnosis.</p>
+            <p>Load an example or add your own request, then run the diagnosis.</p>
           </div>
 
           <div id="report" class="report" hidden>
             <div id="verdict-card" class="verdict-card">
               <div>
-                <p class="eyebrow">Verdict</p>
+                <p>Verdict</p>
                 <h3 id="verdict-label"></h3>
               </div>
               <p id="verdict-summary"></p>
@@ -204,9 +162,9 @@ const base = `${import.meta.env.BASE_URL}/`;
               <button id="copy-link" class="secondary-button" type="button">Copy link</button>
             </div>
 
-            <section class="report-section" aria-labelledby="differences-title">
+            <section class="report-section report-section--findings" aria-labelledby="differences-title">
               <div class="section-heading">
-                <h3 id="differences-title">Field-by-field diagnosis</h3>
+                <h3 id="differences-title">What differs</h3>
                 <span id="finding-count"></span>
               </div>
               <div id="finding-list" class="finding-list"></div>
@@ -217,6 +175,11 @@ const base = `${import.meta.env.BASE_URL}/`;
               <dl id="signer-grid" class="value-grid"></dl>
             </section>
 
+            <section class="report-section" aria-labelledby="context-title">
+              <h3 id="context-title">Input and contract state</h3>
+              <dl id="context-grid" class="value-grid"></dl>
+            </section>
+
             <section class="report-section" aria-labelledby="computed-title">
               <h3 id="computed-title">EIP-712 computation</h3>
               <dl id="computed-grid" class="value-grid"></dl>
@@ -224,13 +187,13 @@ const base = `${import.meta.env.BASE_URL}/`;
           </div>
         </section>
       </section>
+
+      <p class="playground__safety">
+        Never paste a private key or seed phrase. Review typed data before copying a share link.
+      </p>
     </main>
 
-    <footer>
-      <p>Never paste a private key or seed phrase. Review typed data before sharing a link.</p>
-      <p>Report schema v1 · Runs locally with Rust + WebAssembly</p>
-    </footer>
-
+    <SiteFooter base={base} />
     <div id="toast" class="toast" role="status" aria-live="polite"></div>
     <script is:inline type="module" src={`${base}app/app.js`}></script>
   </body>

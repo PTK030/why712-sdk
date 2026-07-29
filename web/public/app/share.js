@@ -1,4 +1,5 @@
-const SHARE_FIELDS = ["typedData", "signature", "signer", "contract", "rpcUrl", "chainId"];
+// RPC URLs commonly contain project credentials, so fragment links never include them.
+const SHARE_FIELDS = ["typedData", "signature", "signer", "contract", "chainId"];
 
 export function encodeShareState(state) {
   const bytes = new TextEncoder().encode(JSON.stringify(pickShareFields(state)));

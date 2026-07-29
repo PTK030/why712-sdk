@@ -6,7 +6,7 @@
   <a href="README.md">English</a> · <a href="README.pl.md">Polski</a> · <a href="README.zh-CN.md">简体中文</a> · 日本語
 </p>
 
-<p align="center">EIP-712 署名を検証できない理由を特定します。</p>
+<p align="center">ローカルでは復元できてもコントラクトが拒否する理由を特定します。</p>
 
 ### [ブラウザーで試す](https://ptk030.github.io/why712/) — インストール不要、バックエンドなし
 
@@ -14,6 +14,7 @@ why712 は EIP-712 のすべての中間値を計算し、署名者を復元し�
 有限の候補集合から探索します。RPC エンドポイントを指定すると、ERC-5267 または
 `DOMAIN_SEPARATOR()` を使ってコントラクトの実際のドメインを読み取り、使用した
 フォールバックを明示します。
+認識された EIP-2612 と Permit2 メッセージでは、nonce とブロック時刻も比較します。
 
 - chain ID、ドメインフィールド、フィールド順、整数幅、packed encoding、
   ハッシュされていない動的値、`0x1901` の欠落、bare struct hash、

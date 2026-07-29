@@ -6,13 +6,14 @@
   <a href="README.md">English</a> · <a href="README.pl.md">Polski</a> · 简体中文 · <a href="README.ja.md">日本語</a>
 </p>
 
-<p align="center">找出 EIP-712 签名无法通过验证的具体原因。</p>
+<p align="center">本地签名恢复成功但合约拒绝时，找出具体原因。</p>
 
 ### [在浏览器中试用](https://ptk030.github.io/why712/) — 无需安装、无后端
 
 why712 会计算全部 EIP-712 中间值、恢复签名者，并在一个有界集合中检查常见签名错误。
 提供 RPC 端点时，它会通过 ERC-5267 或 `DOMAIN_SEPARATOR()` 读取合约的真实域，并明确
 记录所使用的回退方式。
+对于识别出的 EIP-2612 和 Permit2 消息，它还会比较合约 nonce 与区块时间。
 
 - 诊断错误的 chain ID、域字段、字段顺序、整数宽度、紧凑编码、未哈希动态值、
   缺少 `0x1901`、裸结构哈希和 `personal_sign` 等问题。

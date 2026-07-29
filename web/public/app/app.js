@@ -8,10 +8,13 @@ import { decodeShareState, encodeShareState } from "./share.js";
 const elements = {
   form: document.querySelector("#diagnose-form"),
   typedData: document.querySelector("#typed-data"),
+  inputFormat: document.querySelector("#input-format"),
+  typedDataLabel: document.querySelector("#typed-data-label"),
   signature: document.querySelector("#signature"),
   signer: document.querySelector("#signer"),
   contract: document.querySelector("#contract"),
   rpcUrl: document.querySelector("#rpc-url"),
+  erc6492Validator: document.querySelector("#erc6492-validator"),
   chainId: document.querySelector("#chain-id"),
   diagnoseButton: document.querySelector("#diagnose-button"),
   clearButton: document.querySelector("#clear-button"),
@@ -26,11 +29,29 @@ const elements = {
   findingCount: document.querySelector("#finding-count"),
   findingList: document.querySelector("#finding-list"),
   signerGrid: document.querySelector("#signer-grid"),
+  contextGrid: document.querySelector("#context-grid"),
   computedGrid: document.querySelector("#computed-grid"),
   copyMarkdown: document.querySelector("#copy-markdown"),
   copyLink: document.querySelector("#copy-link"),
   toast: document.querySelector("#toast"),
 };
+
+elements.inputFormat?.addEventListener("change", updateInputFormatLabel);
+
+function updateInputFormatLabel() {
+  const wallet = elements.inputFormat.value === "wallet-request";
+  elements.typedDataLabel.replaceChildren(
+    document.createTextNode(
+      wallet ? "eth_signTypedData_v4 request " : "EIP-712 typed data ",
+    ),
+  );
+  const required = document.createElement("strong");
+  required.textContent = "required";
+  elements.typedDataLabel.append(required);
+  elements.typedData.placeholder = wallet
+    ? '{"jsonrpc":"2.0","method":"eth_signTypedData_v4","params":["0x…",{…}]}'
+    : '{"types":{…},"primaryType":"…","domain":{…},"message":{…}}';
+}
 
 let engineReady = false;
 let currentReport = null;
@@ -45,6 +66,7 @@ await start();
 
 async function start() {
   restoreShareState();
+  updateInputFormatLabel();
   await Promise.allSettled([loadEngine(), loadExamples()]);
 }
 
@@ -153,6 +175,7 @@ function buildRequest() {
     signer: elements.signer.value.trim(),
     contract: elements.contract.value.trim(),
     rpcUrl: elements.rpcUrl.value.trim(),
+    erc6492Validator: elements.erc6492Validator.value.trim(),
   });
 
   const chainId = elements.chainId.value.trim();
@@ -182,6 +205,14 @@ function renderReport(report) {
   renderValueGrid(elements.signerGrid, [
     ["Expected", report.expectedSigner ?? "Not supplied"],
     ["Recovered", report.recoveredSigner ?? "Not available"],
+  ]);
+  const context = report.context ?? {};
+  renderValueGrid(elements.contextGrid, [
+    ["Input", context.inputSource ?? "TYPED_DATA"],
+    ["Standard", context.detectedStandard ?? "Not detected"],
+    ["Chain", context.chainId ?? "Not observed"],
+    ["Block", context.blockNumber ?? "Not observed"],
+    ["Block time", context.blockTimestamp ?? "Not observed"],
   ]);
   renderValueGrid(elements.computedGrid, [
     ["encodeType", report.computed.encodeType],
@@ -335,6 +366,7 @@ function writeFormState(state) {
 
 function clearForm() {
   elements.form.reset();
+  updateInputFormatLabel();
   currentReport = null;
   elements.report.hidden = true;
   elements.emptyResult.hidden = false;
