@@ -216,7 +216,8 @@ The read-only Permit2 verification call completed successfully at the observed s
 ## ERC6492_WRAPPER_DETECTED
 
 The signature ends with the ERC-6492 detection suffix and wraps a counterfactual contract
-signature. Validate the wrapper before attempting ERC-1271 or ECDSA recovery.
+signature. why712 decodes the canonical factory/prepare target and component lengths without
+executing them. Validate the wrapper before attempting ERC-1271 or ECDSA recovery.
 
 ## ERC6492_SIGNATURE_VALID
 

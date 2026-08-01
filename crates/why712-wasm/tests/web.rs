@@ -1,4 +1,4 @@
-//! Browser-level contract tests for the generated JavaScript bindings.
+//! JavaScript contract tests for the generated WebAssembly bindings.
 #![cfg(target_arch = "wasm32")]
 
 use serde::Serialize;

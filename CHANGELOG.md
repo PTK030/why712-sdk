@@ -9,22 +9,24 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-- Rebuilt the static website with Astro and TypeScript, split the WASM playground to `/app/`,
-  and added searchable Starlight user documentation under `/docs/`.
-- Switched new versions from MIT to PolyForm Noncommercial 1.0.0, with separate paid
-  commercial licensing.
-- Added Polish, Simplified Chinese, and Japanese README translations.
+- Repositioned why712 as an embeddable developer tool: a typed npm SDK backed by the existing
+  Rust/WebAssembly engine, plus the native CLI and Rust crate.
+- Removed the Astro landing page, browser playground, Starlight site, and GitHub Pages deployment,
+  then updated every translated README for the SDK product.
+- Licensed the complete Rust, TypeScript/WASM, CLI, and distribution surface under MIT for
+  unrestricted open-source and commercial adoption subject to the license notice.
 - Added focused agent skills for diagnostics, fixture research, and releases.
 - Added a documentation-sync skill and PR contract so features, public behavior changes, and
   releases update affected docs in the same change.
-- Kept Dependabot on the TypeScript 6.x line until Astro supports TypeScript 7's native
-  compiler API.
 - Improved container build caching, GHCR usage guidance, and superseded-main-run cancellation.
 
 ### Added
 
 - Report schema v2 context, `eth_signTypedData_v4` input, block timestamps, stateful EIP-2612
   and Permit2 findings, read-only EIP-2612 simulation, and ERC-6492 wrapper detection.
+- Direct transaction-hash diagnosis for allowlisted EIP-2612 and Permit2 calls, with mined
+  parent-block or pending latest-state reads, exact Permit2 calldata simulation, decoded
+  ERC-6492 wrapper context, and strict unknown-selector refusal.
 
 - Pure EIP-712 parsing and intermediate computation through Alloy.
 - Canonical and ERC-2098 signature parsing, recovery, and scalar diagnostics.
@@ -34,11 +36,8 @@ uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Contract-signer detection and ERC-1271 ABI helpers.
 - `why712 check`, `digest`, `examples`, and `explain` commands with tested exit codes.
 - Shared independently verified fixture corpus, snapshots, native CI, and WASM compile guard.
-- Browser WASM bindings with fetch-based RPC fallback and generated TypeScript declarations.
-- Static diagnostic application with field-level findings, copied Markdown reports,
-  fragment-only share links, and one-click examples from the shared fixture corpus.
-- Headless browser CI and GitHub Pages deployment from the same verified static artifact.
-- Responsive product introduction, project logo, and a real browser-recorded diagnostic demo.
+- Browser and Node WASM bindings over `globalThis.fetch`, wrapped by conditional npm exports,
+  stable TypeScript declarations, Node contract tests, and extracted-tarball verification.
 - ERC-1271 contract-signature execution with opaque signature bytes and explicit valid, invalid,
   and unavailable outcomes.
 - Non-root distroless production image and a pinned Anvil mainnet-fork Compose service.

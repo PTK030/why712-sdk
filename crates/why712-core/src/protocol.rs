@@ -1,10 +1,11 @@
 //! Protocol recognition and transport-neutral verification evidence.
 
-use alloy_primitives::{Address, U256};
+use alloy_primitives::{Address, Bytes, U256};
+use alloy_sol_types::SolValue;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{Error, Result};
+use crate::{Error, Result, TransactionContext};
 
 /// ERC-6492 suffix defined by the standard.
 pub const ERC6492_DETECTION_SUFFIX: [u8; 32] = [
@@ -23,6 +24,17 @@ pub enum InputSource {
     WalletRequest,
     /// A recognized verification transaction.
     Transaction,
+}
+
+/// One normalized diagnostic input with its original transport representation.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DiagnosticInput {
+    /// EIP-712 document consumed by the hashing engine.
+    pub typed_data_json: String,
+    /// Exact JSON supplied by the caller before normalization.
+    pub original_json: String,
+    /// Transport shape recognized at the boundary.
+    pub source: InputSource,
 }
 
 /// Signature protocol recognized without guessing.
@@ -230,6 +242,47 @@ pub struct DiagnosticContext {
     #[serde(skip_serializing_if = "Option::is_none")]
     /// Protocol-specific state.
     pub protocol: Option<ProtocolSnapshot>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Decoded ERC-6492 wrapper sizes and factory/prepare target.
+    pub erc6492_wrapper: Option<Erc6492WrapperContext>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Transaction hash, state block, selector, and recognized direct operation.
+    pub transaction: Option<TransactionContext>,
+}
+
+/// Safe report context decoded from an ERC-6492 wrapper.
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Erc6492WrapperContext {
+    /// Factory for an undeployed account or prepare target for a deployed account.
+    pub target: Address,
+    /// Byte length of factory or prepare calldata.
+    pub calldata_length: usize,
+    /// Byte length of the wrapped ERC-1271 signature.
+    pub inner_signature_length: usize,
+}
+
+/// Fully decoded ERC-6492 wrapper used by validation adapters.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Erc6492Wrapper {
+    /// Factory for an undeployed account or prepare target for a deployed account.
+    pub target: Address,
+    /// Factory or prepare calldata.
+    pub calldata: Bytes,
+    /// Original ERC-1271 signature.
+    pub inner_signature: Bytes,
+}
+
+impl Erc6492Wrapper {
+    /// Returns the privacy-safe subset included in report context.
+    #[must_use]
+    pub fn context(&self) -> Erc6492WrapperContext {
+        Erc6492WrapperContext {
+            target: self.target,
+            calldata_length: self.calldata.len(),
+            inner_signature_length: self.inner_signature.len(),
+        }
+    }
 }
 
 /// Normalizes a plain typed-data document or an `eth_signTypedData_v4` envelope.
@@ -237,12 +290,16 @@ pub struct DiagnosticContext {
 /// # Errors
 ///
 /// Returns an error when the JSON-RPC request has no usable typed-data parameter.
-pub fn normalize_typed_data(input: &str) -> Result<(String, InputSource)> {
+pub fn normalize_diagnostic_input(input: &str) -> Result<DiagnosticInput> {
     let value: Value = serde_json::from_str(input).map_err(|source| Error::TypedDataShape {
         reason: source.to_string(),
     })?;
     if value.get("method").and_then(Value::as_str) != Some("eth_signTypedData_v4") {
-        return Ok((input.to_owned(), InputSource::TypedData));
+        return Ok(DiagnosticInput {
+            typed_data_json: input.to_owned(),
+            original_json: input.to_owned(),
+            source: InputSource::TypedData,
+        });
     }
     let params = value
         .get("params")
@@ -259,7 +316,49 @@ pub fn normalize_typed_data(input: &str) -> Result<(String, InputSource)> {
             reason: source.to_string(),
         })?,
     };
-    Ok((normalized, InputSource::WalletRequest))
+    Ok(DiagnosticInput {
+        typed_data_json: normalized,
+        original_json: input.to_owned(),
+        source: InputSource::WalletRequest,
+    })
+}
+
+/// Compatibility wrapper returning the normalized document and source.
+///
+/// # Errors
+///
+/// Returns an error under the same conditions as [`normalize_diagnostic_input`].
+pub fn normalize_typed_data(input: &str) -> Result<(String, InputSource)> {
+    let normalized = normalize_diagnostic_input(input)?;
+    Ok((normalized.typed_data_json, normalized.source))
+}
+
+/// Decodes an ERC-6492 `(address,bytes,bytes)` wrapper after checking its suffix.
+///
+/// # Errors
+///
+/// Returns a typed-data shape error when the signature is malformed hex, lacks the suffix, or
+/// does not contain the canonical ABI tuple.
+pub fn decode_erc6492_signature(signature: &str) -> Result<Erc6492Wrapper> {
+    if !is_erc6492_signature(signature) {
+        return Err(shape("signature does not carry the ERC-6492 suffix"));
+    }
+    let encoded = signature.strip_prefix("0x").unwrap_or(signature);
+    let bytes = hex::decode(encoded).map_err(|error| shape(&format!("signature hex: {error}")))?;
+    let body = bytes
+        .get(..bytes.len().saturating_sub(ERC6492_DETECTION_SUFFIX.len()))
+        .ok_or_else(|| shape("ERC-6492 wrapper is shorter than its suffix"))?;
+    let (target, calldata, inner_signature) =
+        <(Address, Bytes, Bytes)>::abi_decode(body).map_err(|error| {
+            shape(&format!(
+                "ERC-6492 wrapper must encode (address,bytes,bytes): {error}"
+            ))
+        })?;
+    Ok(Erc6492Wrapper {
+        target,
+        calldata,
+        inner_signature,
+    })
 }
 
 /// Recognizes supported typed-data shapes using exact primary type and field names.
@@ -322,8 +421,9 @@ pub fn detect_standard(root: &Value) -> Option<DetectedStandard> {
             Some(DetectedStandard::Permit2Allowance)
         }
         "PermitTransferFrom"
-            if message.len() == 3
+            if message.len() == 4
                 && message.contains_key("permitted")
+                && message.contains_key("spender")
                 && message.contains_key("nonce")
                 && message.contains_key("deadline")
                 && exact_type(
@@ -331,6 +431,26 @@ pub fn detect_standard(root: &Value) -> Option<DetectedStandard> {
                     "PermitTransferFrom",
                     &[
                         ("permitted", "TokenPermissions"),
+                        ("spender", "address"),
+                        ("nonce", "uint256"),
+                        ("deadline", "uint256"),
+                    ],
+                ) =>
+        {
+            Some(DetectedStandard::Permit2SignatureTransfer)
+        }
+        "PermitBatchTransferFrom"
+            if message.len() == 4
+                && message.contains_key("permitted")
+                && message.contains_key("spender")
+                && message.contains_key("nonce")
+                && message.contains_key("deadline")
+                && exact_type(
+                    root,
+                    "PermitBatchTransferFrom",
+                    &[
+                        ("permitted", "TokenPermissions[]"),
+                        ("spender", "address"),
                         ("nonce", "uint256"),
                         ("deadline", "uint256"),
                     ],

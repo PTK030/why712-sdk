@@ -45,6 +45,12 @@ jobs:
             exit 1
           fi
 
+          sdk_version="$(node -p "require('./packages/why712-sdk/package.json').version")"
+          if [[ "$sdk_version" != "$version" ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match the npm package version $sdk_version."
+            exit 1
+          fi
+
           if ! grep -Fq "## [$version]" CHANGELOG.md; then
             echo "::error::CHANGELOG.md has no release section for $version."
             exit 1
@@ -169,9 +175,57 @@ jobs:
             cargo publish --locked -p why712
           fi
 
+  publish-npm:
+    name: publish npm package
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.16.0
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+
+      - name: Install pinned SDK dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.9.0 --activate
+          pnpm install --frozen-lockfile
+
+      - name: Install pinned wasm-pack
+        run: cargo install wasm-pack --version 0.15.0 --locked
+
+      - name: Build, test, and pack SDK
+        run: |
+          pnpm build:sdk
+          pnpm check:sdk
+          pnpm test:sdk
+          pnpm --filter why712 pack --pack-destination target/npm
+          node scripts/verify-sdk-package.mjs "target/npm/why712-${GITHUB_REF_NAME#v}.tgz"
+
+      - name: Publish npm package
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          archive="target/npm/why712-$version.tgz"
+          if npm view "why712@$version" version >/dev/null 2>&1; then
+            echo "why712 $version is already published; continuing an interrupted release."
+          else
+            npm publish "$archive" --access public
+          fi
+
   release:
     name: publish GitHub Release
-    needs: [build, publish-crates]
+    needs: [build, publish-crates, publish-npm]
     runs-on: ubuntu-24.04
     permissions:
       contents: write

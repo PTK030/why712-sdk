@@ -3,17 +3,13 @@
 **/*.rs.bk
 *.pdb
 
-# wasm-pack output
-/web/public/app/pkg/
+# wasm-pack / SDK output
 /crates/why712-wasm/pkg/
-/web/public/app/examples/
-/web/public/app/build.json
-/web/dist/
+/packages/why712-sdk/dist/
 
-# Node/Astro
+# Node
 /node_modules/
 /.pnpm-store/
-/.astro/
 
 # Insta snapshot review artifacts
 **/*.snap.new

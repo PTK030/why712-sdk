@@ -27,8 +27,9 @@ user. There is no telemetry, account system, project backend, or RPC proxy.
 
 When `--rpc` is used, the CLI contacts only the endpoint supplied explicitly or through
 `WHY712_RPC_URL`. The endpoint can observe the caller's IP address and the public chain queries:
-chain ID, block metadata, runtime code, domain getters, permit state, and read-only verification
-calls. ERC-1271, EIP-2612 simulation, and optional ERC-6492 validation send the public digest
+chain ID, transaction details requested by hash, block metadata, runtime code, domain getters,
+permit state, and read-only verification calls. ERC-1271, EIP-2612/Permit2 simulation, and
+optional ERC-6492 validation send the public digest
 and signature as `eth_call` calldata. ERC-6492 validation uses only a validator address supplied
 by the user, rejects wrappers above 128 KiB, and limits the call to five million gas. No call is
 broadcast as a transaction.
@@ -36,12 +37,10 @@ broadcast as a transaction.
 RPC operators can return false data. Reports preserve the endpoint-derived values and probe
 fallback source, but why712 does not establish chain consensus or endpoint integrity.
 
-The browser demo has the same boundary. Typed data, signatures, and reports remain in the
-browser. It contacts only its static origin for application files and reproducible examples,
-plus an RPC URL the user explicitly supplies. Share links encode the current inputs after `#`;
-URL fragments are not sent in HTTP requests, but anyone receiving the full link can read those
-inputs. RPC URLs and ERC-6492 validator addresses are excluded from share links. Review the
-remaining inputs before copying a link.
+The TypeScript SDK has the same boundary. Typed data, signatures, and reports remain in the
+calling Node.js or browser process. The embedded Rust/WebAssembly engine performs no implicit
+telemetry or backend request. `diagnoseOffline()` performs no network I/O; `diagnose()` contacts
+only the RPC URL explicitly supplied by the caller. Browser endpoints must permit CORS.
 
 ## Sensitive report content
 

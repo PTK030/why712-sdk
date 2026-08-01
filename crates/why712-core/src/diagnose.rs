@@ -65,7 +65,11 @@ pub fn diagnose_offline(request: &DiagnoseRequest) -> Result<Report> {
         });
     }
     if is_erc6492 {
-        erc6492_findings(request.onchain_snapshot.as_ref(), &mut findings);
+        erc6492_findings(
+            request.signature.as_deref(),
+            request.onchain_snapshot.as_ref(),
+            &mut findings,
+        );
     }
 
     let canonical_match = request
@@ -179,6 +183,13 @@ pub fn diagnose_offline(request: &DiagnoseRequest) -> Result<Report> {
             .onchain_snapshot
             .as_ref()
             .and_then(|snapshot| snapshot.protocol.clone()),
+        erc6492_wrapper: request
+            .signature
+            .as_deref()
+            .filter(|signature| is_erc6492_signature(signature))
+            .and_then(|signature| crate::decode_erc6492_signature(signature).ok())
+            .map(|wrapper| wrapper.context()),
+        transaction: request.transaction_context.clone(),
     });
     Ok(report)
 }
@@ -198,15 +209,42 @@ fn protocol_simulation_is_unavailable(snapshot: &OnchainSnapshot) -> bool {
     }
 }
 
-fn erc6492_findings(snapshot: Option<&OnchainSnapshot>, findings: &mut Vec<Finding>) {
-    findings.push(protocol_finding(
+fn erc6492_findings(
+    signature: Option<&str>,
+    snapshot: Option<&OnchainSnapshot>,
+    findings: &mut Vec<Finding>,
+) {
+    let decoded = signature.map(crate::decode_erc6492_signature);
+    let mut detected = protocol_finding(
         FindingCode::Erc6492WrapperDetected,
         Severity::Info,
         "The signature carries the ERC-6492 counterfactual wrapper.",
         Some("ERC-6492 validation before ERC-1271 or ECDSA".to_owned()),
         Some("ERC-6492 suffix present".to_owned()),
         "Validate the wrapper with a bounded ERC-6492-compatible eth_call.",
-    ));
+    );
+    if let Some(Ok(wrapper)) = &decoded {
+        detected.evidence = Some(format!(
+            "factory/prepare target: {}; calldata: {} bytes; inner signature: {} bytes",
+            wrapper.target,
+            wrapper.calldata.len(),
+            wrapper.inner_signature.len()
+        ));
+    }
+    findings.push(detected);
+    if let Some(Err(error)) = decoded {
+        let mut finding = protocol_finding(
+            FindingCode::Erc6492ValidationFailed,
+            Severity::Warning,
+            "The ERC-6492 suffix is present, but its wrapper is malformed.",
+            Some("abi.encode(address,bytes,bytes) plus the ERC-6492 suffix".to_owned()),
+            Some("malformed wrapper".to_owned()),
+            "Recreate the wrapper with canonical ABI encoding before validation.",
+        );
+        finding.evidence = Some(error.to_string());
+        findings.push(finding);
+        return;
+    }
     match snapshot.and_then(|snapshot| snapshot.erc6492.as_ref()) {
         Some(Erc6492Probe::Valid) => findings.push(protocol_finding(
             FindingCode::Erc6492SignatureValid,

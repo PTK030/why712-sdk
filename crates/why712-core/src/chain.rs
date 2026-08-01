@@ -1,12 +1,13 @@
 //! Transport-neutral chain snapshot acquisition.
 
-use alloy_primitives::{Address, Bytes, U256, keccak256};
+use alloy_primitives::{Address, B256, Bytes, U256, keccak256};
 use serde::Serialize;
 
 use crate::{
     DomainSeparator, Eip2612Snapshot, Erc1271Input, Erc1271Probe, Erc6492Probe, Error,
-    OnchainDomain, ParsedSignature, Permit2AllowanceItemSnapshot, Permit2AllowanceSnapshot,
-    Permit2SignatureTransferSnapshot, ProtocolRequest, ProtocolSnapshot, Result, SimulationResult,
+    ExecutionCall, OnchainDomain, ParsedSignature, Permit2AllowanceItemSnapshot,
+    Permit2AllowanceSnapshot, Permit2SignatureTransferSnapshot, ProtocolRequest, ProtocolSnapshot,
+    Result, SimulationResult,
     eip712::domain::{decode_domain_separator, domain_separator_calldata},
     erc1271::{decode_is_valid_signature, encode_is_valid_signature},
 };
@@ -22,6 +23,17 @@ pub trait ChainClient {
         self.eth_call(to, data).await
     }
 
+    /// Executes `eth_call` with the original transaction sender at an explicit block.
+    async fn eth_call_from_at(
+        &self,
+        to: Address,
+        _from: Address,
+        data: Bytes,
+        block: Option<u64>,
+    ) -> Result<Bytes> {
+        self.eth_call_at(to, data, block).await
+    }
+
     /// Executes `eth_call` with an explicit gas ceiling.
     async fn eth_call_limited(&self, to: Address, data: Bytes, _gas: u64) -> Result<Bytes> {
         self.eth_call(to, data).await
@@ -32,6 +44,19 @@ pub trait ChainClient {
 
     /// Reads runtime bytecode with `eth_getCode` at the latest block.
     async fn eth_get_code(&self, address: Address) -> Result<Bytes>;
+
+    /// Reads runtime bytecode at an explicit block number when supplied.
+    async fn eth_get_code_at(&self, address: Address, _block: Option<u64>) -> Result<Bytes> {
+        self.eth_get_code(address).await
+    }
+
+    /// Fetches a transaction required for transaction-hash diagnosis.
+    async fn eth_get_transaction_by_hash(&self, _hash: B256) -> Result<ChainTransaction> {
+        Err(Error::Rpc {
+            method: "eth_getTransactionByHash",
+            reason: "transport does not implement transaction lookup".to_owned(),
+        })
+    }
 
     /// Reads the latest block number.
     async fn eth_block_number(&self) -> Result<u64> {
@@ -48,6 +73,24 @@ pub trait ChainClient {
             reason: "transport does not implement block lookup".to_owned(),
         })
     }
+}
+
+/// Transaction fields required for deterministic direct-call reconstruction.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChainTransaction {
+    /// Original JSON-RPC transaction object retained for reproducibility.
+    pub original_json: String,
+    /// Transaction hash returned by the endpoint.
+    pub hash: B256,
+    /// Direct call target.
+    pub to: Address,
+    /// Transaction sender, which is significant for Permit2.
+    pub from: Address,
+    /// Complete calldata.
+    pub input: Bytes,
+    /// Inclusion block, or `None` while pending.
+    pub block_number: Option<u64>,
 }
 
 /// A failed optional probe retained as evidence instead of aborting diagnosis.
@@ -140,25 +183,72 @@ pub async fn acquire_onchain_snapshot<C: ChainClient>(
     expected_signer: Option<Address>,
     erc1271_input: Option<Erc1271Input>,
 ) -> Result<OnchainSnapshot> {
+    let mut metadata_failures = Vec::new();
+    let (block_number, block_timestamp) = match client.eth_block_number().await {
+        Ok(number) => match client.eth_block_timestamp(number).await {
+            Ok(timestamp) => (Some(number), Some(timestamp)),
+            Err(error) => {
+                metadata_failures.push(probe_failure("eth_getBlockByNumber", &error));
+                (Some(number), None)
+            }
+        },
+        Err(error) => {
+            metadata_failures.push(probe_failure("eth_blockNumber", &error));
+            (None, None)
+        }
+    };
+    let mut snapshot = acquire_onchain_snapshot_at(
+        client,
+        contract,
+        expected_signer,
+        erc1271_input,
+        block_number,
+        block_timestamp,
+    )
+    .await?;
+    snapshot.failures.splice(0..0, metadata_failures);
+    Ok(snapshot)
+}
+
+/// Acquires all chain evidence at a caller-selected state block.
+///
+/// This is used for transaction diagnosis: the parent block for mined transactions and the
+/// current latest block for pending transactions.
+///
+/// # Errors
+///
+/// Returns an error when essential chain ID, code, or historical-state reads fail.
+pub async fn acquire_onchain_snapshot_at<C: ChainClient>(
+    client: &C,
+    contract: Address,
+    expected_signer: Option<Address>,
+    erc1271_input: Option<Erc1271Input>,
+    block_number: Option<u64>,
+    block_timestamp: Option<u64>,
+) -> Result<OnchainSnapshot> {
     let chain_id = client.eth_chain_id().await?;
-    let contract_code = client.eth_get_code(contract).await?;
+    let contract_code = client.eth_get_code_at(contract, block_number).await?;
     let signer_code = match expected_signer {
-        Some(signer) => Some(client.eth_get_code(signer).await?),
+        Some(signer) => Some(client.eth_get_code_at(signer, block_number).await?),
         None => None,
     };
     let mut failures = Vec::new();
     let domain = match client
-        .eth_call(contract, Bytes::from(OnchainDomain::calldata()))
+        .eth_call_at(
+            contract,
+            Bytes::from(OnchainDomain::calldata()),
+            block_number,
+        )
         .await
         .and_then(|data| OnchainDomain::decode(&data))
     {
         Ok(domain) => {
-            let separator = optional_separator(client, contract, &mut failures).await;
+            let separator = optional_separator(client, contract, block_number, &mut failures).await;
             DomainProbe::Erc5267 { domain, separator }
         }
         Err(error) => {
             failures.push(probe_failure("eip712Domain()", &error));
-            match optional_separator(client, contract, &mut failures).await {
+            match optional_separator(client, contract, block_number, &mut failures).await {
                 Some(separator) => DomainProbe::SeparatorOnly { separator },
                 None => DomainProbe::Unavailable,
             }
@@ -166,23 +256,9 @@ pub async fn acquire_onchain_snapshot<C: ChainClient>(
     };
     let erc1271 = match (expected_signer, signer_code.as_ref(), erc1271_input) {
         (Some(signer), Some(code), Some(input)) if !code.is_empty() => {
-            Some(probe_erc1271(client, signer, input).await)
+            Some(probe_erc1271(client, signer, input, block_number).await)
         }
         _ => None,
-    };
-
-    let (block_number, block_timestamp) = match client.eth_block_number().await {
-        Ok(number) => match client.eth_block_timestamp(number).await {
-            Ok(timestamp) => (Some(number), Some(timestamp)),
-            Err(error) => {
-                failures.push(probe_failure("eth_getBlockByNumber", &error));
-                (Some(number), None)
-            }
-        },
-        Err(error) => {
-            failures.push(probe_failure("eth_blockNumber", &error));
-            (None, None)
-        }
     };
 
     Ok(OnchainSnapshot {
@@ -207,6 +283,7 @@ pub async fn acquire_protocol_snapshot<C: ChainClient>(
     contract: Address,
     request: ProtocolRequest,
     signature: Option<&str>,
+    execution: Option<&ExecutionCall>,
     block_number: Option<u64>,
     block_timestamp: Option<u64>,
 ) -> ProtocolSnapshot {
@@ -225,7 +302,7 @@ pub async fn acquire_protocol_snapshot<C: ChainClient>(
                 block_number,
             )
             .await;
-            let simulation = signature.map(|encoded| {
+            let generated_simulation = signature.map(|encoded| {
                 ParsedSignature::parse_hex(encoded).and_then(|parsed| {
                     let parity =
                         parsed
@@ -250,19 +327,35 @@ pub async fn acquire_protocol_snapshot<C: ChainClient>(
                     ))
                 })
             });
-            let simulation = match simulation {
-                Some(Ok(calldata)) => Some(
-                    match client.eth_call_at(contract, calldata, block_number).await {
-                        Ok(_) => SimulationResult::Succeeded,
-                        Err(error) => SimulationResult::Reverted {
-                            reason: error.to_string(),
+            let simulation_call = execution
+                .map(|call| Ok((Some(call.from), call.calldata.clone())))
+                .or_else(|| generated_simulation.map(|result| result.map(|data| (None, data))));
+            let simulation = if let Err(error) = &nonce_result {
+                Some(SimulationResult::Unavailable {
+                    reason: format!("state read failed before simulation: {error}"),
+                })
+            } else {
+                match simulation_call {
+                    Some(Ok((from, calldata))) => Some(
+                        match match from {
+                            Some(from) => {
+                                client
+                                    .eth_call_from_at(contract, from, calldata, block_number)
+                                    .await
+                            }
+                            None => client.eth_call_at(contract, calldata, block_number).await,
+                        } {
+                            Ok(_) => SimulationResult::Succeeded,
+                            Err(error) => SimulationResult::Reverted {
+                                reason: error.to_string(),
+                            },
                         },
-                    },
-                ),
-                Some(Err(error)) => Some(SimulationResult::Unavailable {
-                    reason: error.to_string(),
-                }),
-                None => None,
+                    ),
+                    Some(Err(error)) => Some(SimulationResult::Unavailable {
+                        reason: error.to_string(),
+                    }),
+                    None => None,
+                }
             };
             ProtocolSnapshot::Eip2612(Eip2612Snapshot {
                 owner,
@@ -307,13 +400,41 @@ pub async fn acquire_protocol_snapshot<C: ChainClient>(
                     expiration: detail.expiration,
                 });
             }
+            let state_failure = allowances
+                .iter()
+                .find_map(|item| item.state_failure.clone());
             ProtocolSnapshot::Permit2Allowance(Permit2AllowanceSnapshot {
                 allowances,
                 signature_deadline,
                 block_timestamp,
-                simulation: signature.map(|_| SimulationResult::Unavailable {
-                    reason: "Permit2 simulation requires recognized execution calldata".to_owned(),
-                }),
+                simulation: if let Some(reason) = state_failure {
+                    Some(SimulationResult::Unavailable {
+                        reason: format!("state read failed before simulation: {reason}"),
+                    })
+                } else {
+                    match execution {
+                        Some(call) => Some(
+                            match client
+                                .eth_call_from_at(
+                                    contract,
+                                    call.from,
+                                    call.calldata.clone(),
+                                    block_number,
+                                )
+                                .await
+                            {
+                                Ok(_) => SimulationResult::Succeeded,
+                                Err(error) => SimulationResult::Reverted {
+                                    reason: error.to_string(),
+                                },
+                            },
+                        ),
+                        None => signature.map(|_| SimulationResult::Unavailable {
+                            reason: "Permit2 simulation requires recognized execution calldata"
+                                .to_owned(),
+                        }),
+                    }
+                },
             })
         }
         ProtocolRequest::Permit2SignatureTransfer {
@@ -332,16 +453,42 @@ pub async fn acquire_protocol_snapshot<C: ChainClient>(
                 block_number,
             )
             .await;
+            let simulation = if let Err(error) = &bitmap_result {
+                Some(SimulationResult::Unavailable {
+                    reason: format!("state read failed before simulation: {error}"),
+                })
+            } else {
+                match execution {
+                    Some(call) => Some(
+                        match client
+                            .eth_call_from_at(
+                                contract,
+                                call.from,
+                                call.calldata.clone(),
+                                block_number,
+                            )
+                            .await
+                        {
+                            Ok(_) => SimulationResult::Succeeded,
+                            Err(error) => SimulationResult::Reverted {
+                                reason: error.to_string(),
+                            },
+                        },
+                    ),
+                    None => signature.map(|_| SimulationResult::Unavailable {
+                        reason:
+                            "Permit2 transfer simulation requires recognized execution calldata"
+                                .to_owned(),
+                    }),
+                }
+            };
             ProtocolSnapshot::Permit2SignatureTransfer(Permit2SignatureTransferSnapshot {
                 nonce,
                 nonce_bitmap: bitmap_result.as_ref().ok().copied(),
                 state_failure: bitmap_result.err().map(|error| error.to_string()),
                 signature_deadline,
                 block_timestamp,
-                simulation: signature.map(|_| SimulationResult::Unavailable {
-                    reason: "Permit2 transfer simulation requires recognized execution calldata"
-                        .to_owned(),
-                }),
+                simulation,
             })
         }
     }
@@ -385,9 +532,13 @@ async fn probe_erc1271<C: ChainClient>(
     client: &C,
     signer: Address,
     input: Erc1271Input,
+    block_number: Option<u64>,
 ) -> Erc1271Probe {
     let calldata = encode_is_valid_signature(input.hash, input.signature);
-    match client.eth_call(signer, Bytes::from(calldata)).await {
+    match client
+        .eth_call_at(signer, Bytes::from(calldata), block_number)
+        .await
+    {
         Ok(data) => {
             decode_is_valid_signature(&data).unwrap_or_else(|error| Erc1271Probe::Unavailable {
                 reason: error.to_string(),
@@ -402,10 +553,15 @@ async fn probe_erc1271<C: ChainClient>(
 async fn optional_separator<C: ChainClient>(
     client: &C,
     contract: Address,
+    block_number: Option<u64>,
     failures: &mut Vec<ProbeFailure>,
 ) -> Option<DomainSeparator> {
     match client
-        .eth_call(contract, Bytes::from(domain_separator_calldata()))
+        .eth_call_at(
+            contract,
+            Bytes::from(domain_separator_calldata()),
+            block_number,
+        )
         .await
         .and_then(|data| decode_domain_separator(&data))
     {

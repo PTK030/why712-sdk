@@ -4,7 +4,8 @@ why712 tells you why an EIP-712 signature doesn't verify. It reads the contract'
 separator over RPC, recomputes the digest locally, and reports the specific cause of the
 mismatch — and where it can, which change makes the signature work.
 
-Two front-ends, one core: a CLI (`why712`) and a WASM demo page. There is no backend.
+Two developer surfaces, one core: a TypeScript/WASM SDK (`why712` on npm) and a CLI (`why712`).
+There is no hosted application or backend.
 
 ## Repository map
 
@@ -13,9 +14,8 @@ This is a Cargo workspace.
 - `crates/why712-core` — deterministic diagnosis plus transport-neutral chain snapshot types.
   Diagnosis is pure and synchronous; the optional native `rpc` feature is the only network code.
 - `crates/why712-cli` — the `why712` binary. Argument parsing and rendering only.
-- `crates/why712-wasm` — JS bindings and a `fetch`-based RPC transport.
-- `web/` — the statically generated Astro site: landing page, Starlight user docs, and vanilla
-  TypeScript/WASM playground. No React and no backend.
+- `crates/why712-wasm` — JS bindings and a `globalThis.fetch` RPC transport for Node/browser.
+- `packages/why712-sdk` — the public TypeScript facade and npm package tests.
 - `docker/` — the shipped CLI image and the development toolchain image.
 - `scripts/` — helper scripts, notably `dev-cargo.sh`.
 
@@ -34,7 +34,7 @@ outlive the current task — update a doc. Code-level facts belong in a comment 
 | [docs/architecture.md](docs/architecture.md) | Crate layering, the pure-core boundary, how RPC stays out of it |
 | [docs/coding-standards.md](docs/coding-standards.md) | What gets merged and what doesn't |
 | [docs/testing.md](docs/testing.md) | Test vectors, fixtures, snapshots, wasm tests |
-| [docs/development.md](docs/development.md) | Local setup, building for wasm, running the demo page |
+| [docs/development.md](docs/development.md) | Local setup, building and testing the SDK and CLI |
 | [docs/release.md](docs/release.md) | Release playbook |
 | [SECURITY.md](SECURITY.md) | Threat model and what never leaves the user's machine |
 
@@ -74,8 +74,8 @@ one-off facts or rules already clear in `AGENTS.md` or `docs/` into skills.
 
 ## Language
 
-English is canonical for code, docs, comments, identifiers, CLI output, finding text, the demo
-UI, templates, and commit messages. Deliberate README translations are the only exception:
+English is canonical for code, docs, comments, identifiers, CLI output, finding text, SDK API,
+templates, and commit messages. Deliberate README translations are the only exception:
 name them `README.<locale>.md`, keep the language switcher synchronized, and update them when a
 canonical README change affects users.
 
@@ -88,9 +88,9 @@ cargo test --workspace
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo fmt --all -- --check
 cargo check -p why712-core --target wasm32-unknown-unknown
-pnpm test:web
-pnpm check:web
-pnpm build
+pnpm build:sdk
+pnpm check:sdk
+pnpm test:sdk
 ```
 
 Without Rust, run the same commands through the pinned toolchain container:
@@ -100,7 +100,7 @@ scripts/dev-cargo.sh test --workspace
 ```
 
 The wasm check is not optional busywork. `why712-core` must build for
-`wasm32-unknown-unknown` or the demo page cannot exist, and a dependency that breaks it is far
+`wasm32-unknown-unknown` or the TypeScript SDK cannot exist, and a dependency that breaks it is far
 cheaper to catch now than after the code is written. CI runs it on every push.
 
 ## Non-negotiables

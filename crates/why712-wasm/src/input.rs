@@ -1,18 +1,21 @@
 //! JavaScript request parsing and core input assembly.
 
-use alloy_primitives::Address;
+use alloy_primitives::{Address, B256};
 use serde::Deserialize;
 use serde_json::Value;
 use wasm_bindgen::JsValue;
 use why712_core::{
     DiagnoseRequest, DomainProbe, Erc1271Input, Error, HypothesisContext, OnchainSnapshot,
-    TypedDataDocument, normalize_typed_data,
+    TypedDataDocument, normalize_diagnostic_input,
 };
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct WebRequest {
-    typed_data: TypedDataInput,
+    #[serde(default)]
+    typed_data: Option<TypedDataInput>,
+    #[serde(default)]
+    transaction_hash: Option<String>,
     #[serde(default)]
     signature: Option<String>,
     #[serde(default)]
@@ -49,6 +52,12 @@ impl WebRequest {
     pub(crate) fn rpc_target(&self) -> Result<Option<RpcTarget<'_>>, JsValue> {
         if self.erc6492_validator.is_some() && self.rpc_url.is_none() {
             return Err(JsValue::from_str("erc6492Validator requires rpcUrl"));
+        }
+        if self.transaction_hash.is_some() {
+            return match &self.rpc_url {
+                Some(_) => Ok(None),
+                None => Err(JsValue::from_str("transactionHash requires rpcUrl")),
+            };
         }
         match (&self.rpc_url, &self.contract) {
             (Some(_), None) => Err(JsValue::from_str("rpcUrl requires contract")),
@@ -106,25 +115,29 @@ impl WebRequest {
             enrich_hypotheses(snapshot, &mut hypothesis_context);
         }
         let raw_input = self.typed_data_json()?;
-        let (typed_data_json, input_source) = normalize_typed_data(&raw_input)
+        let normalized = normalize_diagnostic_input(&raw_input)
             .map_err(|error| JsValue::from_str(&error.to_string()))?;
         Ok(DiagnoseRequest {
-            typed_data_json,
+            typed_data_json: normalized.typed_data_json,
             signature: self.signature,
             expected_signer,
             hypothesis_context,
             onchain_snapshot,
             onchain_failure,
-            input_source,
+            input_source: normalized.source,
+            transaction_context: None,
         })
     }
 
     pub(crate) fn typed_data_json(&self) -> Result<String, JsValue> {
-        match &self.typed_data {
-            TypedDataInput::Json(json) => Ok(json.clone()),
-            TypedDataInput::Value(value) => {
+        match self.typed_data.as_ref() {
+            Some(TypedDataInput::Json(json)) => Ok(json.clone()),
+            Some(TypedDataInput::Value(value)) => {
                 serde_json::to_string(value).map_err(|error| JsValue::from_str(&error.to_string()))
             }
+            None => Err(JsValue::from_str(
+                "typedData is required unless transactionHash is supplied",
+            )),
         }
     }
 
@@ -137,6 +150,21 @@ impl WebRequest {
             .as_deref()
             .map(|value| parse_address(value, "erc6492Validator"))
             .transpose()
+    }
+
+    pub(crate) fn transaction_hash(&self) -> Result<Option<B256>, JsValue> {
+        self.transaction_hash
+            .as_deref()
+            .map(|value| {
+                value
+                    .parse()
+                    .map_err(|_| JsValue::from_str("transactionHash must be a 32-byte hex hash"))
+            })
+            .transpose()
+    }
+
+    pub(crate) fn rpc_url(&self) -> Option<&str> {
+        self.rpc_url.as_deref()
     }
 }
 

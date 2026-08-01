@@ -6,6 +6,7 @@ use crate::{Finding, Report, Verdict};
 
 /// Renders a report for pasting into an issue, pull request, or chat.
 #[must_use]
+#[allow(clippy::too_many_lines)] // One linear renderer keeps the Markdown section order auditable.
 pub fn render_markdown(report: &Report) -> String {
     let mut output = String::new();
     writeln!(output, "# why712 diagnostic report").ok();
@@ -36,6 +37,19 @@ pub fn render_markdown(report: &Report) -> String {
         }
         if let Some(timestamp) = context.block_timestamp {
             writeln!(output, "| Block timestamp | `{timestamp}` |").ok();
+        }
+        if let Some(transaction) = &context.transaction {
+            writeln!(output, "| Transaction | `{}` |", transaction.hash).ok();
+            writeln!(
+                output,
+                "| Operation | `{}` |",
+                escape_table(&transaction.operation)
+            )
+            .ok();
+            writeln!(output, "| State block | `{}` |", transaction.state_block).ok();
+        }
+        if let Some(wrapper) = &context.erc6492_wrapper {
+            writeln!(output, "| ERC-6492 target | `{}` |", wrapper.target).ok();
         }
         writeln!(output).ok();
     }

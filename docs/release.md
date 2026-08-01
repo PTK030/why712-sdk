@@ -3,10 +3,10 @@
 why712 follows semantic versioning while pre-1.0 minor versions identify product milestones:
 
 - `0.1.x`: native core and CLI;
-- `0.2.x`: WASM bindings and browser demo;
-- `0.3.x`: ERC-1271 execution, production image, and automated distribution.
+- `0.2.x`: Rust/WebAssembly TypeScript SDK;
+- `0.3.x`: stateful protocol diagnosis, production image, and automated distribution.
 
-Container, binary, GitHub Release, and crates.io publishing are automated. The repository and
+Container, binary, GitHub Release, crates.io, and npm publishing are automated. The repository and
 registry authentication described below still require one-time owner configuration.
 
 ## Container publishing
@@ -42,6 +42,7 @@ operation, the workflow requires:
 
 - the tag to have the exact stable-semver shape `vX.Y.Z`;
 - `why712-core` and `why712` to both have version `X.Y.Z`;
+- the npm package under `packages/why712-sdk` to have version `X.Y.Z`;
 - `CHANGELOG.md` to contain a matching `## [X.Y.Z]` section.
 
 Four native runners build `x86_64-unknown-linux-gnu`, `x86_64-apple-darwin`,
@@ -54,6 +55,10 @@ final job.
 The crates.io job publishes `why712-core`, waits up to ten minutes for that exact version to
 appear in the registry API/index, then verifies and publishes the `why712` CLI. It detects
 already-published versions so a run can safely continue after a partial failure.
+
+The npm job builds both conditional WASM exports, type-checks the TypeScript facade, runs the
+Node contract tests, extracts and imports the exact tarball, then publishes `why712`. It also
+detects an already-published version so a release can resume after partial failure.
 
 ### One-time crates.io authentication
 
@@ -72,6 +77,23 @@ The official crates.io authentication action then exchanges GitHub OIDC identity
 short-lived token and revokes it after the job. The publish job alone receives
 `id-token: write`; no long-lived token is needed after bootstrap.
 
+### One-time npm authentication
+
+The public npm name `why712` returned `404 Not Found` on 2026-08-01 and was available before the
+SDK package was prepared. The first publish must claim it with an npm account token stored as
+the `NPM_TOKEN` secret in the protected `release` environment. After the package exists:
+
+1. Configure its npm trusted publisher for GitHub owner `PTK030`, repository `why712`, workflow
+   `release.yml`, and environment `release`.
+2. Remove `NPM_TOKEN`; the release job already grants only `contents: read` and `id-token: write`.
+3. Restrict traditional token publishing in the npm package settings after one trusted publish
+   succeeds.
+
+Official [npm trusted-publisher documentation](https://docs.npmjs.com/trusted-publishers/) was
+checked on 2026-08-01. It requires a GitHub-hosted runner, matching repository metadata, the
+workflow filename, and OIDC `id-token: write`. Trusted publishing automatically emits provenance
+for a public package from a public repository.
+
 ## Prepare
 
 1. Start from a clean `main` checkout and review all changes since the previous tag.
@@ -85,6 +107,9 @@ cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
 cargo check -p why712-core --target wasm32-unknown-unknown
+pnpm build:sdk
+pnpm check:sdk
+pnpm test:sdk
 ```
 
 ## Package verification
@@ -96,6 +121,8 @@ cargo package -p why712-core --list
 cargo package -p why712 --list
 cargo publish -p why712-core --dry-run
 cargo publish -p why712 --dry-run
+pnpm --filter why712 pack --pack-destination target/npm
+node scripts/verify-sdk-package.mjs target/npm/why712-X.Y.Z.tgz
 ```
 
 The CLI depends on the published core version, so publish `why712-core` first. Wait until the
@@ -116,6 +143,8 @@ After publishing:
 - run one matching and one mismatching bundled fixture;
 - verify exit codes 0, 1, and 2;
 - verify the crates.io package links, README, license, and repository URL.
+- install the npm tarball into a clean Node project and run one `diagnoseOffline()` call;
+- verify the npm package exposes both Node and browser conditions and includes both WASM files.
 
 For the GitHub Release, download every archive, run `sha256sum --check SHA256SUMS`, inspect the
 archive contents, and execute the binary on its matching platform. For GHCR, also perform the

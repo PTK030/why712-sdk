@@ -1,4 +1,4 @@
-<p align="center"><img src="assets/logo.svg" width="88" height="88" alt="why712 logo"></p>
+<p align="center"><img src="assets/logo.svg" width="72" height="72" alt="why712 logo"></p>
 
 <h1 align="center">why712</h1>
 
@@ -6,41 +6,83 @@
   English · <a href="README.pl.md">Polski</a> · <a href="README.zh-CN.md">简体中文</a> · <a href="README.ja.md">日本語</a>
 </p>
 
+<p align="center">A Rust-powered TypeScript SDK that explains why an EIP-712 signature does not verify.</p>
+
 <p align="center">
   <a href="https://github.com/PTK030/why712/actions/workflows/ci.yml"><img src="https://github.com/PTK030/why712/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-blue.svg" alt="PolyForm Noncommercial 1.0.0"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="MIT license"></a>
 </p>
 
-<p align="center">When local signature recovery succeeds but the contract rejects it, find out why.</p>
+why712 is an embeddable developer tool for EIP-712, EIP-2612, Permit2, ERC-1271, and ERC-6492.
+Its deterministic diagnosis engine is written in Rust and ships inside the TypeScript package as
+WebAssembly. It finds specific root causes such as the wrong chain ID, domain shape, field order,
+integer width, signature encoding, nonce state, or contract-signature result.
 
-<p align="center"><img src="assets/demo.gif" alt="why712 diagnosing a wrong EIP-712 chain ID" width="100%"></p>
+There is no hosted application and no why712 backend. Use the SDK in application code, tests,
+scripts, and CI, or use the companion CLI during interactive debugging.
 
-### [Try it in your browser](https://ptk030.github.io/why712/) — no install, no backend
+## TypeScript SDK
 
-> **Pre-release:** the native core, CLI, browser demo, and Pages workflow are functional.
-> Packaged binaries and the production Docker image belong to the next milestone.
-
-why712 computes every EIP-712 intermediate, recovers the signer, and searches a bounded set of
-common signing mistakes. When an RPC endpoint is supplied, it reads the contract's actual domain
-through ERC-5267 or `DOMAIN_SEPARATOR()` and records exactly which fallback was used.
-
-Recognized EIP-2612 and Permit2 messages are also compared with the contract's nonce and the
-observed block timestamp. EIP-2612 verification can be simulated with a read-only call.
-
-- Root-cause findings for wrong chain IDs, domain fields, field order, integer widths, packed
-  encoding, unhashed dynamic values, missing `0x1901`, bare struct hashes, and `personal_sign`.
-- Signature diagnostics for raw or invalid `v`, high-S malleability, zero scalars, canonical
-  65-byte signatures, and compact ERC-2098 signatures.
-- Text, versioned JSON, and GitHub-flavored Markdown output.
-- Deterministic offline operation with no telemetry, account, or backend.
-- CI exit codes: `0` match, `1` non-match, `2` usage/input/I/O error.
-
-## Run from source
-
-Rust 1.97 is pinned by `rust-toolchain.toml`. After cloning:
+After the first npm release:
 
 ```bash
-cargo run -p why712 -- examples
+pnpm add why712
+```
+
+```ts
+import { diagnoseOffline } from "why712";
+
+const report = await diagnoseOffline({
+  typedData,
+  signature,
+  signer: expectedSigner,
+});
+
+for (const finding of report.findings) {
+  console.error(finding.code, finding.remediation);
+}
+```
+
+Use RPC enrichment when the diagnosis should compare the request with contract and protocol
+state:
+
+```ts
+import { diagnose } from "why712";
+
+const report = await diagnose({
+  typedData,
+  signature,
+  signer: expectedSigner,
+  contract: verifyingContract,
+  rpcUrl: process.env.ETH_RPC_URL,
+});
+```
+
+The same package has conditional browser and Node.js exports. Both execute the same Rust core;
+the TypeScript facade hides WebAssembly initialization and exposes camelCase input and report
+types. Modern Node.js uses its global `fetch`. A browser RPC endpoint must permit CORS.
+
+## Build the SDK from source
+
+Rust 1.97, Node.js 24.16.0, pnpm 11.9.0, and wasm-pack 0.15.0 are pinned by the repository.
+
+```bash
+pnpm install --frozen-lockfile
+pnpm build:sdk
+pnpm check:sdk
+pnpm test:sdk
+pnpm --filter why712 pack --pack-destination target/npm
+node scripts/verify-sdk-package.mjs target/npm/why712-0.1.0.tgz
+```
+
+The publishable package is [`packages/why712-sdk`](packages/why712-sdk). Generated browser and
+Node artifacts live under its ignored `dist/` directory.
+
+## CLI
+
+Run the companion CLI from source:
+
+```bash
 cargo run -p why712 -- check \
   --typed-data crates/why712-core/fixtures/examples/wrong-chain-id.json \
   --signature 0x4355c47d63924e8a72e509b65029052eb6c299d53a04e167c5775fd466751c9d07299936d304c153f6443dfa05f40ff007d72911b6f72307f996231605b915621c \
@@ -49,46 +91,11 @@ cargo run -p why712 -- check \
   --offline
 ```
 
-Install the current checkout locally:
+After the first crates.io release:
 
 ```bash
-cargo install --path crates/why712-cli --locked
+cargo install why712
 ```
-
-Once the first release is published, the install command will be `cargo install why712`.
-
-## Run with Docker
-
-Build the production image and run the same CLI without a host Rust toolchain:
-
-```bash
-docker build --file docker/Dockerfile --tag why712:local .
-docker run --rm --network none --read-only why712:local examples
-```
-
-The final image is a non-root distroless runtime containing only the binary and its runtime
-libraries. See [docker/README.md](docker/README.md) for read-only file/stdin examples, exit
-codes, RPC use, and the local Anvil mainnet fork.
-
-## Run the browser demo and docs
-
-The website is a static Astro application: a product landing page, a vanilla TypeScript
-playground over the same Rust/WASM core, and public documentation powered by Starlight. Install
-the exact locked web dependencies, then build the ignored production artifact:
-
-```bash
-corepack enable
-pnpm install --frozen-lockfile
-pnpm build
-node scripts/serve-web.mjs
-```
-
-Open `http://127.0.0.1:4173/why712/`; the playground lives at `/why712/app/` and user docs at
-`/why712/docs/`. The playground provides field-by-field findings, intermediate hashes,
-one-click fixtures, Markdown copy, and fragment-only share links. No typed data is sent to a
-project backend; an outbound request occurs only when an RPC URL and contract are supplied.
-
-## Commands
 
 ```text
 why712 check    Diagnose a signature, optionally enriched through RPC
@@ -97,58 +104,37 @@ why712 examples List the bundled reproducible cases
 why712 explain  Explain a stable FindingCode
 ```
 
-Typed data may come from a file or stdin (`--typed-data -`). A live probe requires both
-`--contract` and `--rpc`; `WHY712_RPC_URL` may supply the endpoint. `--offline` always prevents
-network access, including when that environment variable is set.
+## Rust library
 
-```bash
-why712 check \
-  --typed-data permit.json \
-  --signature 0x... \
-  --signer 0x... \
-  --contract 0x... \
-  --rpc https://your-endpoint.example \
-  --format json
+`why712-core` is the transport-neutral engine for Rust consumers. `diagnose_offline()` is pure
+and synchronous. Callers that need chain evidence first acquire a plain `OnchainSnapshot`, then
+pass it across the deterministic boundary.
 
-why712 digest --typed-data permit.json --format json
-why712 explain DOMAIN_CHAIN_ID_MISMATCH
-```
+The core does not implement EIP-712 hashing itself. It delegates hashing to pinned Alloy
+libraries and verifies behavior against vectors produced independently with Viem, ethers, and
+the applicable EIP/ERC specifications.
 
-RPC enrichment failure is printed to stderr and diagnosis continues offline. Reports that have
-chain evidence include `ONCHAIN_DOMAIN_SOURCE`, so an ERC-5267, separator-only, or offline
-fallback is never silent.
-
-## What the tool does not do
+## Safety and scope
 
 why712 does not sign messages, accept private keys, submit transactions, operate a wallet, or
-support non-EVM chains. For an expected contract signer, RPC mode passes the canonical digest
-and complete opaque signature to ERC-1271 `isValidSignature(bytes32,bytes)`; it never assumes a
-smart-account signature has an ECDSA layout.
+support non-EVM chains. Never provide a private key or seed phrase. Typed data and reports may
+contain sensitive business data; review them before logging or sharing them.
 
-Never provide a private key or seed phrase. Typed data and signatures may themselves contain
-sensitive application data; review a report before sharing it.
+RPC mode sends only the public calls needed to collect chain evidence to the endpoint selected
+by the caller. Offline diagnosis performs no network I/O.
 
 ## Documentation
 
 | Document | Contents |
 |---|---|
 | [Diagnostic catalog](docs/diagnostics.md) | Every stable finding code, meaning, and fix |
-| [Architecture](docs/architecture.md) | Crate boundaries, snapshots, RPC, ERC-5267, ERC-1271 |
-| [Development](docs/development.md) | Native Rust setup, container fallback, local commands |
-| [Testing](docs/testing.md) | Independent vectors, fixtures, snapshots, required checks |
-| [Coding standards](docs/coding-standards.md) | Review and implementation rules |
-| [Release](docs/release.md) | Versioning, verification, publishing, and rollback |
-| [Security policy](SECURITY.md) | Threat model, privacy boundary, vulnerability reporting |
-
-## Contributing
-
-Read [CONTRIBUTING.md](CONTRIBUTING.md). The short version: keep changes focused, preserve the
-pure diagnosis boundary, add tests and diagnostic documentation together, and run all four
-required checks.
+| [Architecture](docs/architecture.md) | Rust core, TypeScript/WASM boundary, snapshots, and RPC |
+| [Development](docs/development.md) | Toolchain, SDK build, CLI, and required checks |
+| [Testing](docs/testing.md) | Independent vectors, fixtures, snapshots, WASM, and package tests |
+| [Security](SECURITY.md) | Trust boundaries and sensitive data |
+| [Release](docs/release.md) | Binary, crates.io, npm, and container release process |
 
 ## License
 
-Source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE): permitted
-noncommercial use is free, while commercial use requires a separate paid license. See
-[commercial licensing](COMMERCIAL-LICENSE.md) for the boundary, contact route, and the effect
-of the previous MIT license.
+Open source under the [MIT License](LICENSE). You may use, modify, distribute, sublicense, and
+sell copies subject to the license notice.

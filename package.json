@@ -1,23 +1,17 @@
 {
-  "name": "why712-web",
+  "name": "why712-workspace",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@11.9.0",
   "scripts": {
-    "build": "node scripts/build-web.mjs",
-    "build:site": "astro build",
-    "dev": "astro dev",
-    "preview": "astro preview",
-    "test:web": "node --test web/src/scripts/share.test.mjs web/src/scripts/dom-contract.test.mjs web/src/scripts/design-contract.test.mjs",
-    "check:web": "astro check",
-    "check:links": "node scripts/check-web-links.mjs"
-  },
-  "dependencies": {
-    "@astrojs/starlight": "0.41.5",
-    "astro": "7.1.5"
+    "build": "node scripts/build-sdk.mjs",
+    "build:sdk": "node scripts/build-sdk.mjs",
+    "check:sdk": "pnpm --filter why712 check",
+    "test:sdk": "pnpm --filter why712 test",
+    "pack:sdk": "pnpm --filter why712 pack",
+    "verify:sdk-package": "node scripts/verify-sdk-package.mjs"
   },
   "devDependencies": {
-    "@astrojs/check": "0.9.10",
     "typescript": "6.0.3"
   }
 }

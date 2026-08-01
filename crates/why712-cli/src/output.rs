@@ -28,6 +28,13 @@ pub(crate) fn render_report_text(report: &Report, no_color: bool) -> Result<()> 
         if let Some(block) = context.block_number {
             writeln!(output, "State block:      {block}")?;
         }
+        if let Some(transaction) = &context.transaction {
+            writeln!(output, "Transaction:      {}", transaction.hash)?;
+            writeln!(output, "Operation:        {}", transaction.operation)?;
+        }
+        if let Some(wrapper) = &context.erc6492_wrapper {
+            writeln!(output, "ERC-6492 target:  {}", wrapper.target)?;
+        }
     }
     if let Some(expected) = report.expected_signer {
         writeln!(output, "Expected signer:  {expected}")?;

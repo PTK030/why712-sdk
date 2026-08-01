@@ -11,15 +11,16 @@ use std::{
     process::ExitCode,
 };
 
-use alloy_primitives::{Address, Bytes};
+use alloy_primitives::{Address, B256, Bytes};
 use anyhow::{Context, Result, bail};
 use clap::{Args, Parser, Subcommand, ValueEnum};
 use serde::Deserialize;
 use why712_core::{
     DiagnoseRequest, Digest, DomainProbe, Erc1271Input, FindingCode, HypothesisContext,
     InputSource, OnchainSnapshot, ProtocolRequest, TypedDataDocument, Verdict,
-    acquire_onchain_snapshot, acquire_protocol_snapshot, diagnose_offline, is_erc6492_signature,
-    normalize_typed_data, probe_erc6492, protocol_request, render_markdown, rpc::AlloyChainClient,
+    acquire_onchain_snapshot, acquire_onchain_snapshot_at, acquire_protocol_snapshot,
+    diagnose_offline, is_erc6492_signature, normalize_diagnostic_input, probe_erc6492,
+    protocol_request, reconstruct_transaction, render_markdown, rpc::AlloyChainClient,
 };
 
 use crate::output::{render_computed_text, render_report_text};
@@ -56,6 +57,14 @@ struct CheckArgs {
     /// Complete `eth_signTypedData_v4` JSON-RPC request file, or `-` for stdin.
     #[arg(long, value_name = "FILE", conflicts_with = "typed_data")]
     wallet_request: Option<PathBuf>,
+    /// Direct EIP-2612 or Permit2 transaction hash to reconstruct through RPC.
+    #[arg(
+        long,
+        value_name = "HASH",
+        conflicts_with_all = ["typed_data", "wallet_request"],
+        requires = "rpc"
+    )]
+    tx: Option<B256>,
     /// Canonical 65-byte or compact ERC-2098 signature.
     #[arg(long)]
     signature: Option<String>,
@@ -153,6 +162,9 @@ async fn run(cli: Cli) -> Result<ExitCode> {
 }
 
 async fn check(args: CheckArgs) -> Result<ExitCode> {
+    if args.tx.is_some() {
+        return check_transaction(args).await;
+    }
     if !args.offline && args.rpc.is_some() && args.contract.is_none() {
         bail!("--rpc requires --contract unless --offline is set");
     }
@@ -162,7 +174,9 @@ async fn check(args: CheckArgs) -> Result<ExitCode> {
         .or(args.wallet_request.as_ref())
         .context("provide --typed-data or --wallet-request")?;
     let raw_input = read_input(input_path)?;
-    let (typed_data_json, detected_source) = normalize_typed_data(&raw_input)?;
+    let normalized = normalize_diagnostic_input(&raw_input)?;
+    let typed_data_json = normalized.typed_data_json;
+    let detected_source = normalized.source;
     let input_source = if args.wallet_request.is_some() {
         if detected_source != InputSource::WalletRequest {
             bail!("--wallet-request requires an eth_signTypedData_v4 JSON-RPC request");
@@ -232,6 +246,7 @@ async fn check(args: CheckArgs) -> Result<ExitCode> {
         onchain_snapshot,
         onchain_failure,
         input_source,
+        transaction_context: None,
     };
     let report = diagnose_offline(&request)?;
     match args.format {
@@ -240,6 +255,89 @@ async fn check(args: CheckArgs) -> Result<ExitCode> {
         OutputFormat::Markdown => write_stdout(&render_markdown(&report))?,
     }
 
+    Ok(if report.verdict == Verdict::Match {
+        ExitCode::SUCCESS
+    } else {
+        ExitCode::from(EXIT_MISMATCH)
+    })
+}
+
+async fn check_transaction(args: CheckArgs) -> Result<ExitCode> {
+    if args.offline {
+        bail!("--tx requires RPC and cannot be combined with --offline");
+    }
+    let hash = args.tx.context("--tx requires a transaction hash")?;
+    let endpoint = args.rpc.as_deref().context("--tx requires --rpc")?;
+    let client = AlloyChainClient::connect(endpoint).await?;
+    let reconstructed = reconstruct_transaction(&client, hash).await?;
+    let document = TypedDataDocument::parse_json(&reconstructed.input.typed_data_json)?;
+    let digest = document.compute()?.digest;
+    let erc1271_input = Some(Erc1271Input::from_signature_hex(
+        digest,
+        &reconstructed.signature,
+    )?);
+    let mut snapshot = acquire_onchain_snapshot_at(
+        &client,
+        reconstructed.contract,
+        Some(reconstructed.signer),
+        erc1271_input,
+        Some(reconstructed.context.state_block),
+        Some(reconstructed.block_timestamp),
+    )
+    .await?;
+    let protocol = protocol_request(document.raw(), Some(reconstructed.signer))?
+        .context("recognized transaction did not reconstruct a supported typed-data shape")?;
+    snapshot.protocol = Some(
+        acquire_protocol_snapshot(
+            &client,
+            reconstructed.contract,
+            protocol,
+            Some(&reconstructed.signature),
+            Some(&reconstructed.execution),
+            Some(reconstructed.context.state_block),
+            Some(reconstructed.block_timestamp),
+        )
+        .await,
+    );
+    if let Some(validator) = args.erc6492_validator
+        && is_erc6492_signature(&reconstructed.signature)
+    {
+        let bytes = alloy_primitives::hex::decode(
+            reconstructed
+                .signature
+                .strip_prefix("0x")
+                .unwrap_or(&reconstructed.signature),
+        )
+        .context("ERC-6492 signature is not valid hex")?;
+        snapshot.erc6492 = Some(
+            probe_erc6492(
+                &client,
+                validator,
+                reconstructed.signer,
+                digest,
+                Bytes::from(bytes),
+            )
+            .await,
+        );
+    }
+    let mut hypothesis_context = HypothesisContext::default();
+    enrich_hypotheses(&snapshot, &mut hypothesis_context);
+    let request = DiagnoseRequest {
+        typed_data_json: reconstructed.input.typed_data_json,
+        signature: Some(reconstructed.signature),
+        expected_signer: Some(reconstructed.signer),
+        hypothesis_context,
+        onchain_snapshot: Some(snapshot),
+        onchain_failure: None,
+        input_source: InputSource::Transaction,
+        transaction_context: Some(reconstructed.context),
+    };
+    let report = diagnose_offline(&request)?;
+    match args.format {
+        OutputFormat::Text => render_report_text(&report, args.no_color)?,
+        OutputFormat::Json => write_stdout(&serde_json::to_string_pretty(&report)?)?,
+        OutputFormat::Markdown => write_stdout(&render_markdown(&report))?,
+    }
     Ok(if report.verdict == Verdict::Match {
         ExitCode::SUCCESS
     } else {
@@ -268,6 +366,7 @@ async fn acquire_or_warn(
                             contract,
                             request,
                             signature,
+                            None,
                             snapshot.block_number,
                             snapshot.block_timestamp,
                         )

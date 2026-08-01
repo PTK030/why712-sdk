@@ -1,6 +1,6 @@
 [package]
 name = "why712-wasm"
-description = "WebAssembly bindings for why712, the EIP-712 signature diagnostic tool"
+description = "WebAssembly engine for the why712 TypeScript package"
 readme = "../../README.md"
 publish = false
 version.workspace = true
@@ -16,7 +16,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 # No `rpc` feature: the native transport would drag alloy's provider stack and tokio into the
-# wasm build. This crate implements the same ChainClient over window.fetch instead.
+# wasm build. This crate implements the same ChainClient over JavaScript's global fetch instead.
 why712-core.workspace = true
 wasm-bindgen.workspace = true
 wasm-bindgen-futures.workspace = true
@@ -25,7 +25,7 @@ serde.workspace = true
 serde_json.workspace = true
 alloy-primitives.workspace = true
 js-sys.workspace = true
-web-sys = { workspace = true, features = ["Window", "Request", "RequestInit", "Response", "Headers"] }
+web-sys = { workspace = true, features = ["Request", "RequestInit", "Response", "Headers"] }
 console_error_panic_hook.workspace = true
 
 [dev-dependencies]

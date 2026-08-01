@@ -16,7 +16,7 @@ categories.workspace = true
 default = []
 # Native JSON-RPC transport. Off by default: the core must stay pure and synchronous so it
 # builds for wasm32-unknown-unknown. Only the CLI turns this on; the wasm crate implements
-# the same ChainClient trait over window.fetch instead.
+# the same ChainClient trait over JavaScript's global fetch instead.
 rpc = ["dep:alloy", "dep:tokio"]
 
 [dependencies]

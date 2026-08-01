@@ -1,0 +1,7 @@
+{
+  "source": "https://eips.ethereum.org/EIPS/eip-2612",
+  "base": "eip2612-valid.json",
+  "messageOverrides": { "deadline": "1600000000" },
+  "state": { "nonce": "7", "blockTimestamp": 1700000100, "simulation": "REVERTED" },
+  "expectedFindings": ["PERMIT_EXPIRED", "PERMIT_CALL_REVERTED"]
+}

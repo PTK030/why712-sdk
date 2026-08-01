@@ -46,6 +46,9 @@ cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo test --workspace --all-features
 cargo check -p why712-core --target wasm32-unknown-unknown
+pnpm build:sdk
+pnpm check:sdk
+pnpm test:sdk
 ```
 
 - Add an entry to `docs/diagnostics.md` in the same change as every `FindingCode`.

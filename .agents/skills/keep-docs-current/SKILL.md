@@ -19,16 +19,16 @@ documentation surface before declaring a feature, PR, or release complete.
 |---|---|
 | Architecture, process, testing, development, or release workflow | Matching file under `docs/` |
 | New or changed `FindingCode` | `docs/diagnostics.md` in the same change |
-| User-facing CLI, WASM, or browser behavior | Matching page under `web/src/content/docs/docs/` |
+| User-facing CLI, WASM, or TypeScript SDK behavior | `README.md`, package README, and matching canonical `docs/` file |
 | Product positioning, install path, or quick start | `README.md` |
 | User-facing canonical README content | Relevant translated READMEs |
 | Security, privacy, or trust boundary | `SECURITY.md` and any affected public guide |
 | Contributor or agent workflow | `CONTRIBUTING.md`, `AGENTS.md`, or a focused project skill |
 | Notable user-visible release change | `CHANGELOG.md` |
 
-Root `docs/` remains the canonical source for system and process knowledge. Public Starlight
-docs are task-oriented user guidance. Link between them when useful; do not copy large sections
-blindly.
+Root `docs/` remains the canonical source for system and process knowledge. The repository and
+package READMEs are task-oriented user guidance; link to canonical docs instead of copying large
+sections blindly.
 
 ## Update documentation with the change
 
@@ -45,7 +45,7 @@ blindly.
 
 1. Review the entire diff for stale claims and newly undocumented behavior.
 2. Run the checks appropriate to the changed surface:
-   - public docs or website: `pnpm check:web`, `pnpm build`, and `pnpm check:links`;
+   - TypeScript SDK: `pnpm build:sdk`, `pnpm check:sdk`, `pnpm test:sdk`, and packed-archive verification;
    - Rust behavior or examples: the relevant narrow test, then the repository quality gates;
    - `FindingCode`: the diagnostic catalog contract and affected snapshots.
 3. Confirm links, commands, paths, code snippets, and example output against the current tree.

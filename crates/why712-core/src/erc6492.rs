@@ -66,6 +66,7 @@ mod tests {
 
     struct Client {
         gas: Mutex<Option<u64>>,
+        response: Option<Bytes>,
     }
 
     impl ChainClient for Client {
@@ -78,7 +79,10 @@ mod tests {
 
         async fn eth_call_limited(&self, _to: Address, _data: Bytes, gas: u64) -> Result<Bytes> {
             *self.gas.lock().expect("gas mutex") = Some(gas);
-            Ok(Bytes::from(U256::from(1).to_be_bytes::<32>().to_vec()))
+            self.response.clone().ok_or_else(|| Error::Rpc {
+                method: "eth_call",
+                reason: "execution reverted".to_owned(),
+            })
         }
 
         async fn eth_chain_id(&self) -> Result<U256> {
@@ -94,6 +98,7 @@ mod tests {
     async fn caps_gas_and_decodes_the_validator_bool() {
         let client = Client {
             gas: Mutex::new(None),
+            response: Some(Bytes::from(U256::from(1).to_be_bytes::<32>().to_vec())),
         };
         let result = probe_erc6492(
             &client,
@@ -114,6 +119,7 @@ mod tests {
     async fn refuses_oversized_wrappers_before_rpc() {
         let client = Client {
             gas: Mutex::new(None),
+            response: Some(Bytes::new()),
         };
         let result = probe_erc6492(
             &client,
@@ -125,5 +131,36 @@ mod tests {
         .await;
         assert!(matches!(result, Erc6492Probe::Unavailable { .. }));
         assert_eq!(*client.gas.lock().expect("gas mutex"), None);
+    }
+
+    #[tokio::test]
+    async fn distinguishes_false_malformed_and_rpc_failure() {
+        let cases = [
+            (
+                Some(Bytes::from(U256::ZERO.to_be_bytes::<32>().to_vec())),
+                true,
+            ),
+            (Some(Bytes::from_static(&[0x01])), false),
+            (None, false),
+        ];
+        for (response, should_be_invalid) in cases {
+            let client = Client {
+                gas: Mutex::new(None),
+                response,
+            };
+            let result = probe_erc6492(
+                &client,
+                address!("00000000000000000000000000000000000000aa"),
+                address!("00000000000000000000000000000000000000bb"),
+                Digest::from_b256([0x11; 32].into()),
+                Bytes::from_static(&[0x64, 0x92]),
+            )
+            .await;
+            if should_be_invalid {
+                assert_eq!(result, Erc6492Probe::Invalid);
+            } else {
+                assert!(matches!(result, Erc6492Probe::Unavailable { .. }));
+            }
+        }
     }
 }

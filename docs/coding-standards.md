@@ -105,7 +105,7 @@ snapshot before diagnosis and is excluded from the default and wasm dependency g
 
 This is not stylistic. It is what lets the CLI and the browser run the same code, what makes
 every diagnosis reproducible from its inputs alone, and what keeps the crate compiling for
-`wasm32-unknown-unknown`. A dependency that breaks the wasm build breaks the demo page, which
+`wasm32-unknown-unknown`. A dependency that breaks the wasm build breaks the TypeScript SDK, which
 is how anyone finds this project at all.
 
 ## Dependency policy

@@ -1,0 +1,78 @@
+name: TypeScript SDK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "crates/why712-core/**"
+      - "crates/why712-wasm/**"
+      - "packages/why712-sdk/**"
+      - "scripts/build-sdk.mjs"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - ".github/workflows/sdk.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "crates/why712-core/**"
+      - "crates/why712-wasm/**"
+      - "packages/why712-sdk/**"
+      - "scripts/build-sdk.mjs"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "rust-toolchain.toml"
+      - ".github/workflows/sdk.yml"
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sdk-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: build and test npm package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.16.0
+          package-manager-cache: false
+
+      - name: Install pinned SDK dependencies
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.9.0 --activate
+          pnpm install --frozen-lockfile
+
+      - name: Install pinned wasm-pack
+        run: cargo install wasm-pack --version 0.15.0 --locked
+
+      - name: Test WASM bindings in Chrome
+        run: wasm-pack test --headless --chrome crates/why712-wasm
+
+      - name: Build browser and Node SDK
+        run: pnpm build:sdk
+
+      - name: Type-check SDK source
+        run: pnpm check:sdk
+
+      - name: Test Node package
+        run: pnpm test:sdk
+
+      - name: Verify publish archive
+        run: |
+          pnpm --filter why712 pack --pack-destination target/npm
+          node scripts/verify-sdk-package.mjs target/npm/why712-0.1.0.tgz

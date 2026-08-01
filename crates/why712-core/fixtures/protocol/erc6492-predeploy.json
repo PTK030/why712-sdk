@@ -1,0 +1,8 @@
+{
+  "source": "https://eips.ethereum.org/EIPS/eip-6492",
+  "factory": "0x00000000000000000000000000000000000000dd",
+  "factoryCalldata": "0x1234",
+  "innerSignature": "0xabcdef",
+  "suffix": "0x6492649264926492649264926492649264926492649264926492649264926492",
+  "expectedFindings": ["ERC6492_WRAPPER_DETECTED"]
+}

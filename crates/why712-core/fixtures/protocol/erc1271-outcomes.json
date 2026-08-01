@@ -1,0 +1,8 @@
+{
+  "source": "https://eips.ethereum.org/EIPS/eip-1271",
+  "cases": [
+    { "name": "valid", "return": "0x1626ba7e00000000000000000000000000000000000000000000000000000000", "verdict": "MATCH" },
+    { "name": "bad-magic", "return": "0xffffffff00000000000000000000000000000000000000000000000000000000", "verdict": "MISMATCH" },
+    { "name": "revert", "error": "execution reverted", "verdict": "INCONCLUSIVE" }
+  ]
+}

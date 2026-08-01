@@ -1,12 +1,13 @@
-//! Browser JSON-RPC transport over `window.fetch`.
+//! JavaScript JSON-RPC transport over `globalThis.fetch`.
 
-use alloy_primitives::{Address, Bytes, U256};
+use alloy_primitives::{Address, B256, Bytes, U256};
+use js_sys::{Function, Reflect};
 use serde::Deserialize;
 use serde_json::{Value, json};
 use wasm_bindgen::{JsCast, JsValue};
 use wasm_bindgen_futures::JsFuture;
 use web_sys::{Headers, Request, RequestInit, Response};
-use why712_core::{ChainClient, Error, Result};
+use why712_core::{ChainClient, ChainTransaction, Error, Result};
 
 pub(crate) struct FetchChainClient<'a> {
     endpoint: &'a str,
@@ -25,25 +26,31 @@ impl<'a> FetchChainClient<'a> {
             "params": params,
         }))
         .map_err(|source| rpc_error(method, source))?;
-        let headers = Headers::new().map_err(|source| browser_error(method, &source))?;
+        let headers = Headers::new().map_err(|source| javascript_error(method, &source))?;
         headers
             .set("content-type", "application/json")
-            .map_err(|source| browser_error(method, &source))?;
+            .map_err(|source| javascript_error(method, &source))?;
         let init = RequestInit::new();
         init.set_method("POST");
         init.set_headers_headers(&headers);
         init.set_body(&JsValue::from_str(&body));
         let request = Request::new_with_str_and_init(self.endpoint, &init)
-            .map_err(|source| browser_error(method, &source))?;
-        let window = web_sys::window().ok_or_else(|| Error::Rpc {
-            method,
-            reason: "window is unavailable".to_owned(),
-        })?;
-        let response = JsFuture::from(window.fetch_with_request(&request))
+            .map_err(|source| javascript_error(method, &source))?;
+        let global = js_sys::global();
+        let fetch = Reflect::get(&global, &JsValue::from_str("fetch"))
+            .map_err(|source| javascript_error(method, &source))?
+            .dyn_into::<Function>()
+            .map_err(|source| javascript_error(method, &source))?;
+        let promise = fetch
+            .call1(&global, request.as_ref())
+            .map_err(|source| fetch_error(method, &source))?
+            .dyn_into::<js_sys::Promise>()
+            .map_err(|source| javascript_error(method, &source))?;
+        let response = JsFuture::from(promise)
             .await
-            .map_err(|source| cors_error(method, &source))?
+            .map_err(|source| fetch_error(method, &source))?
             .dyn_into::<Response>()
-            .map_err(|source| browser_error(method, &source))?;
+            .map_err(|source| javascript_error(method, &source))?;
         if !response.ok() {
             return Err(Error::Rpc {
                 method,
@@ -53,10 +60,10 @@ impl<'a> FetchChainClient<'a> {
         let text = JsFuture::from(
             response
                 .text()
-                .map_err(|source| browser_error(method, &source))?,
+                .map_err(|source| javascript_error(method, &source))?,
         )
         .await
-        .map_err(|source| browser_error(method, &source))?
+        .map_err(|source| javascript_error(method, &source))?
         .as_string()
         .ok_or_else(|| Error::Rpc {
             method,
@@ -110,6 +117,30 @@ impl ChainClient for FetchChainClient<'_> {
         parse_bytes("eth_call", &value)
     }
 
+    async fn eth_call_from_at(
+        &self,
+        to: Address,
+        from: Address,
+        data: Bytes,
+        block: Option<u64>,
+    ) -> Result<Bytes> {
+        let block = block.map_or_else(|| "latest".to_owned(), |value| format!("0x{value:x}"));
+        let value = self
+            .request(
+                "eth_call",
+                json!([
+                    {
+                        "to": to.to_string(),
+                        "from": from.to_string(),
+                        "data": format!("0x{}", alloy_primitives::hex::encode(data)),
+                    },
+                    block
+                ]),
+            )
+            .await?;
+        parse_bytes("eth_call", &value)
+    }
+
     async fn eth_call_limited(&self, to: Address, data: Bytes, gas: u64) -> Result<Bytes> {
         let value = self
             .request(
@@ -141,6 +172,21 @@ impl ChainClient for FetchChainClient<'_> {
         parse_bytes("eth_getCode", &value)
     }
 
+    async fn eth_get_code_at(&self, address: Address, block: Option<u64>) -> Result<Bytes> {
+        let block = block.map_or_else(|| "latest".to_owned(), |value| format!("0x{value:x}"));
+        let value = self
+            .request("eth_getCode", json!([address.to_string(), block]))
+            .await?;
+        parse_bytes("eth_getCode", &value)
+    }
+
+    async fn eth_get_transaction_by_hash(&self, hash: B256) -> Result<ChainTransaction> {
+        let value = self
+            .request("eth_getTransactionByHash", json!([hash.to_string()]))
+            .await?;
+        parse_transaction(hash, &value)
+    }
+
     async fn eth_block_number(&self) -> Result<u64> {
         let value = self.request("eth_blockNumber", json!([])).await?;
         let encoded = string_result("eth_blockNumber", &value)?;
@@ -165,6 +211,49 @@ impl ChainClient for FetchChainClient<'_> {
         u64::from_str_radix(encoded.trim_start_matches("0x"), 16)
             .map_err(|source| rpc_error("eth_getBlockByNumber", source))
     }
+}
+
+fn parse_transaction(hash: B256, value: &Value) -> Result<ChainTransaction> {
+    if value.is_null() {
+        return Err(Error::Rpc {
+            method: "eth_getTransactionByHash",
+            reason: format!("transaction {hash} was not found"),
+        });
+    }
+    let field = |name: &'static str| {
+        value
+            .get(name)
+            .and_then(Value::as_str)
+            .ok_or_else(|| Error::Rpc {
+                method: "eth_getTransactionByHash",
+                reason: format!("result has no {name}"),
+            })
+    };
+    let to = field("to")?.parse().map_err(|_| Error::Rpc {
+        method: "eth_getTransactionByHash",
+        reason: "result has an invalid to address".to_owned(),
+    })?;
+    let from = field("from")?.parse().map_err(|_| Error::Rpc {
+        method: "eth_getTransactionByHash",
+        reason: "result has an invalid from address".to_owned(),
+    })?;
+    let input = alloy_primitives::hex::decode(field("input")?.trim_start_matches("0x"))
+        .map(Bytes::from)
+        .map_err(|source| rpc_error("eth_getTransactionByHash", source))?;
+    let block_number = value
+        .get("blockNumber")
+        .and_then(Value::as_str)
+        .map(|encoded| u64::from_str_radix(encoded.trim_start_matches("0x"), 16))
+        .transpose()
+        .map_err(|source| rpc_error("eth_getTransactionByHash", source))?;
+    Ok(ChainTransaction {
+        original_json: value.to_string(),
+        hash,
+        to,
+        from,
+        input,
+        block_number,
+    })
 }
 
 #[derive(Debug, Deserialize)]
@@ -201,19 +290,19 @@ fn rpc_error(method: &'static str, source: impl core::fmt::Display) -> Error {
     }
 }
 
-fn browser_error(method: &'static str, source: &JsValue) -> Error {
+fn javascript_error(method: &'static str, source: &JsValue) -> Error {
     Error::Rpc {
         method,
         reason: js_value_message(source),
     }
 }
 
-fn cors_error(method: &'static str, source: &JsValue) -> Error {
+fn fetch_error(method: &'static str, source: &JsValue) -> Error {
     Error::Rpc {
         method,
         reason: format!(
-            "browser fetch failed; this RPC may block browser requests (CORS). Use another \
-             endpoint, clear the RPC field for offline mode, or use the CLI: {}",
+            "JavaScript fetch failed; the RPC may be unreachable or reject browser requests \
+             (CORS). Use another endpoint or omit rpcUrl for offline diagnosis: {}",
             js_value_message(source)
         ),
     }

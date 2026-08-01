@@ -117,6 +117,34 @@ fn usage_and_io_failures_exit_two() {
 }
 
 #[test]
+fn transaction_hash_requires_rpc_and_rejects_offline_mode() {
+    command()
+        .args([
+            "check",
+            "--tx",
+            "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        ])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains("--rpc"));
+
+    command()
+        .args([
+            "check",
+            "--tx",
+            "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "--rpc",
+            "http://127.0.0.1:1",
+            "--offline",
+        ])
+        .assert()
+        .code(2)
+        .stderr(predicate::str::contains(
+            "cannot be combined with --offline",
+        ));
+}
+
+#[test]
 fn rpc_failure_is_visible_and_falls_back_offline() {
     command()
         .args([

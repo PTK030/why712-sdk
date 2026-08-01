@@ -24,7 +24,7 @@ body:
       options:
         - CLI
         - why712-core library
-        - WASM or browser demo
+        - TypeScript SDK
         - CI, packaging, or documentation
     validations:
       required: true

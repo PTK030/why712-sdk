@@ -1,4 +1,4 @@
-//! Browser bindings for the deterministic why712 diagnosis engine.
+//! JavaScript bindings for the deterministic why712 diagnosis engine.
 
 mod fetch;
 mod input;
@@ -6,9 +6,10 @@ mod input;
 use serde::Serialize;
 use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
 use why712_core::{
-    TypedDataDocument, acquire_onchain_snapshot, acquire_protocol_snapshot,
-    diagnose_offline as diagnose_core, is_erc6492_signature, probe_erc6492, protocol_request,
-    render_markdown,
+    DiagnoseRequest as CoreDiagnoseRequest, Erc1271Input, HypothesisContext, InputSource,
+    TypedDataDocument, acquire_onchain_snapshot, acquire_onchain_snapshot_at,
+    acquire_protocol_snapshot, diagnose_offline as diagnose_core, is_erc6492_signature,
+    probe_erc6492, protocol_request, reconstruct_transaction, render_markdown,
 };
 
 use crate::{fetch::FetchChainClient, input::WebRequest};
@@ -18,7 +19,8 @@ const EXAMPLES_MANIFEST: &str = include_str!("../../why712-core/fixtures/example
 #[wasm_bindgen(typescript_custom_section)]
 const TYPESCRIPT_API: &str = r#"
 export interface DiagnoseRequest {
-  typedData: object | string;
+  typedData?: object | string;
+  transactionHash?: string;
   signature?: string;
   signer?: string;
   contract?: string;
@@ -51,6 +53,8 @@ export interface DiagnosticReport {
     blockNumber?: number;
     blockTimestamp?: number;
     protocol?: Record<string, unknown>;
+    erc6492Wrapper?: Record<string, unknown>;
+    transaction?: Record<string, unknown>;
   };
   findings: DiagnosticFinding[];
 }
@@ -61,7 +65,7 @@ export function report_to_markdown(report: DiagnosticReport): string;
 export function examples(): unknown[];
 "#;
 
-/// Installs a panic hook that reports Rust panics to the browser console.
+/// Installs a panic hook that reports Rust panics to the JavaScript console.
 #[wasm_bindgen(start)]
 pub fn start() {
     console_error_panic_hook::set_once();
@@ -79,7 +83,7 @@ pub fn diagnose_offline(input: JsValue) -> Result<JsValue, JsValue> {
     to_js_object(&report)
 }
 
-/// Acquires optional chain evidence through browser `fetch`, then runs deterministic diagnosis.
+/// Acquires optional chain evidence through JavaScript `fetch`, then runs deterministic diagnosis.
 ///
 /// RPC and CORS failures become report evidence and do not prevent offline diagnosis.
 ///
@@ -89,6 +93,9 @@ pub fn diagnose_offline(input: JsValue) -> Result<JsValue, JsValue> {
 #[wasm_bindgen(skip_typescript)]
 pub async fn diagnose(input: JsValue) -> Result<JsValue, JsValue> {
     let request = WebRequest::from_js(input)?;
+    if let Some(hash) = request.transaction_hash()? {
+        return diagnose_transaction(request, hash).await;
+    }
     let erc1271_input = request.erc1271_input()?;
     let (snapshot, failure) = match request.rpc_target()? {
         Some(target) => {
@@ -108,6 +115,7 @@ pub async fn diagnose(input: JsValue) -> Result<JsValue, JsValue> {
                                 target.contract,
                                 protocol,
                                 request.signature(),
+                                None,
                                 snapshot.block_number,
                                 snapshot.block_timestamp,
                             )
@@ -136,6 +144,81 @@ pub async fn diagnose(input: JsValue) -> Result<JsValue, JsValue> {
         None => (None, None),
     };
     let report = diagnose_core(&request.into_core(snapshot, failure)?).map_err(js_error)?;
+    to_js_object(&report)
+}
+
+async fn diagnose_transaction(
+    request: WebRequest,
+    hash: alloy_primitives::B256,
+) -> Result<JsValue, JsValue> {
+    let endpoint = request
+        .rpc_url()
+        .ok_or_else(|| JsValue::from_str("transactionHash requires rpcUrl"))?;
+    let client = FetchChainClient::new(endpoint);
+    let reconstructed = reconstruct_transaction(&client, hash)
+        .await
+        .map_err(js_error)?;
+    let document =
+        TypedDataDocument::parse_json(&reconstructed.input.typed_data_json).map_err(js_error)?;
+    let digest = document.compute().map_err(js_error)?.digest;
+    let erc1271 = Erc1271Input::from_signature_hex(digest, &reconstructed.signature)
+        .map(Some)
+        .map_err(js_error)?;
+    let mut snapshot = acquire_onchain_snapshot_at(
+        &client,
+        reconstructed.contract,
+        Some(reconstructed.signer),
+        erc1271,
+        Some(reconstructed.context.state_block),
+        Some(reconstructed.block_timestamp),
+    )
+    .await
+    .map_err(js_error)?;
+    let protocol = protocol_request(document.raw(), Some(reconstructed.signer))
+        .map_err(js_error)?
+        .ok_or_else(|| JsValue::from_str("transaction did not reconstruct a supported permit"))?;
+    snapshot.protocol = Some(
+        acquire_protocol_snapshot(
+            &client,
+            reconstructed.contract,
+            protocol,
+            Some(&reconstructed.signature),
+            Some(&reconstructed.execution),
+            Some(reconstructed.context.state_block),
+            Some(reconstructed.block_timestamp),
+        )
+        .await,
+    );
+    if let Some(validator) = request.erc6492_validator()?
+        && is_erc6492_signature(&reconstructed.signature)
+    {
+        let bytes = alloy_primitives::hex::decode(
+            reconstructed
+                .signature
+                .strip_prefix("0x")
+                .unwrap_or(&reconstructed.signature),
+        )
+        .map(alloy_primitives::Bytes::from)
+        .map_err(js_error)?;
+        snapshot.erc6492 =
+            Some(probe_erc6492(&client, validator, reconstructed.signer, digest, bytes).await);
+    }
+    let mut hypotheses = HypothesisContext::default();
+    if let Ok(chain_id) = u64::try_from(snapshot.chain_id) {
+        hypotheses.chain_ids.push(chain_id);
+    }
+    hypotheses.verifying_contracts.push(reconstructed.contract);
+    let core_request = CoreDiagnoseRequest {
+        typed_data_json: reconstructed.input.typed_data_json,
+        signature: Some(reconstructed.signature),
+        expected_signer: Some(reconstructed.signer),
+        hypothesis_context: hypotheses,
+        onchain_snapshot: Some(snapshot),
+        onchain_failure: None,
+        input_source: InputSource::Transaction,
+        transaction_context: Some(reconstructed.context),
+    };
+    let report = diagnose_core(&core_request).map_err(js_error)?;
     to_js_object(&report)
 }
 

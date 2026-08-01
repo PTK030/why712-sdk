@@ -84,7 +84,7 @@ jobs:
           key: ${{ matrix.os }}
       - run: cargo test --workspace --all-features
 
-  # why712-core must build for wasm32 or the demo page cannot exist. This runs from the very
+  # why712-core must build for wasm32 or the TypeScript SDK cannot exist. This runs from the very
   # first commit, before there is any logic to test, because a dependency that breaks the wasm
   # target is far cheaper to find now than after the code is written. It already caught
   # getrandom 0.2 on the first run.

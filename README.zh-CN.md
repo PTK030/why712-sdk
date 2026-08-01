@@ -1,4 +1,4 @@
-<p align="center"><img src="assets/logo.svg" width="88" height="88" alt="why712 标志"></p>
+<p align="center"><img src="assets/logo.svg" width="72" height="72" alt="why712 标志"></p>
 
 <h1 align="center">why712</h1>
 
@@ -6,51 +6,51 @@
   <a href="README.md">English</a> · <a href="README.pl.md">Polski</a> · 简体中文 · <a href="README.ja.md">日本語</a>
 </p>
 
-<p align="center">本地签名恢复成功但合约拒绝时，找出具体原因。</p>
+<p align="center">由 Rust 引擎驱动的 TypeScript SDK，用于解释 EIP-712 签名为何无法验证。</p>
 
-### [在浏览器中试用](https://ptk030.github.io/why712/) — 无需安装、无后端
+why712 是面向 EIP-712、EIP-2612、Permit2、ERC-1271 和 ERC-6492 的开发工具。诊断引擎
+使用 Rust 编写，并以 WebAssembly 形式包含在 npm 包中。项目不提供托管应用或后端。
 
-why712 会计算全部 EIP-712 中间值、恢复签名者，并在一个有界集合中检查常见签名错误。
-提供 RPC 端点时，它会通过 ERC-5267 或 `DOMAIN_SEPARATOR()` 读取合约的真实域，并明确
-记录所使用的回退方式。
-对于识别出的 EIP-2612 和 Permit2 消息，它还会比较合约 nonce 与区块时间。
+## TypeScript SDK
 
-- 诊断错误的 chain ID、域字段、字段顺序、整数宽度、紧凑编码、未哈希动态值、
-  缺少 `0x1901`、裸结构哈希和 `personal_sign` 等问题。
-- 支持标准 65 字节和 ERC-2098 紧凑签名，并检测错误 `v`、high-S 和零标量。
-- 输出文本、版本化 JSON 或 GitHub Markdown。
-- 可完全离线、确定性运行，无遥测、账户或后端。
+首次发布到 npm 后：
 
-## 从源码运行
+```bash
+pnpm add why712
+```
 
-项目通过 `rust-toolchain.toml` 固定 Rust 1.97。
+```ts
+import { diagnoseOffline } from "why712";
+
+const report = await diagnoseOffline({ typedData, signature, signer: expectedSigner });
+for (const finding of report.findings) {
+  console.error(finding.code, finding.remediation);
+}
+```
+
+`diagnoseOffline()` 不执行任何 I/O。`diagnose()` 可以从开发者明确提供的 RPC 读取公开的
+合约和协议状态。该包会为 Node.js 或浏览器自动选择正确的 WASM 加载器。
+
+## 从源码构建
+
+```bash
+pnpm install --frozen-lockfile
+pnpm build:sdk
+pnpm check:sdk
+pnpm test:sdk
+```
+
+配套 CLI 仍然保留：
 
 ```bash
 cargo run -p why712 -- examples
 cargo install --path crates/why712-cli --locked
 ```
 
-## Docker 与浏览器演示
-
-```bash
-docker build --file docker/Dockerfile --tag why712:local .
-docker run --rm --network none --read-only why712:local examples
-
-pnpm install --frozen-lockfile
-pnpm build
-node scripts/serve-web.mjs
-```
-
-CLI 提供 `check`、`digest`、`examples` 和 `explain`。类型化数据可来自文件或标准输入
-（`--typed-data -`）。`--offline` 始终禁止网络；RPC 模式同时需要 `--contract` 和
-`--rpc`，也可通过 `WHY712_RPC_URL` 提供端点。
-
-why712 不会签名、不接收私钥、不提交交易，也不是钱包。切勿提供私钥或助记词。
-
-完整且权威的内容请参阅[英文 README](README.md)和 [`docs/`](docs/)。
+why712 不会签名、不接收私钥、不提交交易，也不是钱包。完整且权威的内容请参阅
+[英文 README](README.md) 和 [`docs/`](docs/)。
 
 ## 许可证
 
-当前版本依据 [PolyForm Noncommercial License 1.0.0](LICENSE) 以 source-available
-方式提供：允许的非商业用途免费，商业用途需要单独付费许可。详情及联系方式见
-[商业许可说明](COMMERCIAL-LICENSE.md)。
+本项目依据 [MIT License](LICENSE) 开源。保留许可证声明后，可以使用、修改、分发、
+再许可或销售软件副本。

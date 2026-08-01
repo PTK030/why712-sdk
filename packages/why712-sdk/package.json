@@ -1,0 +1,40 @@
+{
+  "name": "why712",
+  "version": "0.1.0",
+  "description": "Diagnose EIP-712, EIP-2612, Permit2, ERC-1271, and ERC-6492 signature failures from TypeScript",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PTK030/why712",
+    "directory": "packages/why712-sdk"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/browser.d.ts",
+      "browser": "./dist/browser.js",
+      "node": "./dist/node.js",
+      "default": "./dist/browser.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node ../../scripts/build-sdk.mjs",
+    "check": "tsc --project tsconfig.json --noEmit",
+    "test": "node --test test/*.test.mjs"
+  },
+  "keywords": [
+    "ethereum",
+    "eip712",
+    "permit2",
+    "signature",
+    "wasm"
+  ]
+}

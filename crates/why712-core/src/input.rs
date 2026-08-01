@@ -2,7 +2,7 @@
 
 use alloy_primitives::Address;
 
-use crate::{HypothesisContext, InputSource, OnchainSnapshot};
+use crate::{HypothesisContext, InputSource, OnchainSnapshot, TransactionContext};
 
 /// Inputs for the pure offline diagnosis path.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -21,4 +21,6 @@ pub struct DiagnoseRequest {
     pub onchain_failure: Option<String>,
     /// Origin of the normalized typed data.
     pub input_source: InputSource,
+    /// Transaction evidence when the document was reconstructed from direct calldata.
+    pub transaction_context: Option<TransactionContext>,
 }

@@ -19,7 +19,7 @@ FROM gcr.io/distroless/cc-debian12:nonroot
 LABEL org.opencontainers.image.title="why712" \
       org.opencontainers.image.description="Diagnose EIP-712 signature verification failures" \
       org.opencontainers.image.source="https://github.com/PTK030/why712" \
-      org.opencontainers.image.licenses="PolyForm-Noncommercial-1.0.0"
+      org.opencontainers.image.licenses="MIT"
 
 COPY --from=builder --chown=nonroot:nonroot /tmp/why712 /usr/local/bin/why712
 

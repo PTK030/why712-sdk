@@ -17,11 +17,7 @@ On Windows, the MSVC target also needs the Visual Studio C++ linker. A working n
 setup has been verified for this repository.
 
 `.mise.toml` pins Node.js 24.16.0 LTS and `wasm-pack` 0.15.0. `package.json` pins pnpm
-11.9.0, while `pnpm-lock.yaml` pins Astro, Starlight, TypeScript, and their complete graph.
-Keep TypeScript on the pinned 6.x line until Astro's language server supports the programmatic
-API of TypeScript 7's native compiler; otherwise `pnpm check:web` fails before site diagnostics
-run. Dependabot ignores only TypeScript major updates and continues proposing compatible 6.x
-updates.
+11.9.0, while `pnpm-lock.yaml` pins the TypeScript compiler used for the public SDK facade.
 Install the exact toolchain and dependencies with:
 
 ```bash
@@ -109,34 +105,36 @@ cargo check -p why712-core --target wasm32-unknown-unknown
 ```
 
 The last check uses the default core feature set. It proves the optional native provider stack
-has not leaked into the browser dependency graph.
+has not leaked into the JavaScript SDK dependency graph.
 
-For web-facing changes, also run:
+For SDK-facing changes, also run:
 
 ```bash
-pnpm test:web
-pnpm check:web
-pnpm build
+pnpm build:sdk
+pnpm check:sdk
+pnpm test:sdk
+pnpm --filter why712 pack --pack-destination target/npm
+node scripts/verify-sdk-package.mjs target/npm/why712-0.1.0.tgz
 ```
 
-## WASM bindings and browser tests
+## TypeScript SDK and WASM tests
 
-Build the complete static site. The script runs the release WASM build, writes its ignored
-package and fixtures under `web/public/app/`, then builds the Astro landing page, vanilla
-playground, and Starlight documentation into ignored `web/dist/`:
+Build both conditional exports of the npm package `why712`:
 
 ```bash
-pnpm build
-node scripts/serve-web.mjs
+pnpm build:sdk
 ```
 
-Open `http://127.0.0.1:4173/why712/`. Set `WHY712_WEB_PORT` to use another port. The server is
-for local development only; production is the exact static `web/dist` Pages artifact.
+The build compiles `crates/why712-wasm` with wasm-pack's `web` and `nodejs` targets, removes the
+generated nested ignore markers so the engine is included in the parent npm archive, and then
+compiles the TypeScript facade into `packages/why712-sdk/dist`. The directory is generated and
+gitignored.
 
-Run the URL-fragment and Astro selector contract tests with:
+Run the Node package tests and TypeScript checks with:
 
 ```bash
-pnpm test:web
+pnpm check:sdk
+pnpm test:sdk
 ```
 
 Run the JavaScript contract tests in headless Chrome:
@@ -160,20 +158,14 @@ release profile in `crates/why712-wasm/Cargo.toml` explicitly enables those feat
 wasm-opt validation; removing those flags breaks the production build even though compilation
 and current browsers support the module.
 
-`.github/workflows/wasm.yml` runs the static contract tests, headless Chrome suite, and release
-build for relevant pull requests. On `main`, that same verified `web/` artifact is deployed to
-GitHub Pages when the repository is public. Private repositories on plans without Pages skip
-only the deploy job, keeping the verified build meaningful and green; making the repository
-public activates deployment without another workflow change. GitHub actions are pinned to
-immutable commit SHAs; update the version comment and SHA together after checking the action's
-official release.
+`.github/workflows/sdk.yml` runs the headless Chrome contract suite, builds both SDK exports,
+type-checks the facade, runs Node tests, creates the npm archive, and imports the Rust engine
+from the extracted archive. GitHub actions are pinned to immutable commit SHAs; update the
+version comment and SHA together after checking the action's official release.
 
-The demo pre-fills `https://ethereum-rpc.publicnode.com` for optional chain evidence. A real
-cross-origin browser probe on 2026-07-29 confirmed that endpoint and
-`https://cloudflare-eth.com`; `https://eth.llamarpc.com` failed the same probe at that time.
-Public RPC behavior can change, so a fetch failure is reported as a possible CORS restriction
-and diagnosis continues offline. Never add a project proxy: the browser and CLI must contact
-only the endpoint selected by the user.
+The browser export contacts only the RPC URL supplied by the SDK caller. Public RPC behavior
+can change and browser endpoints may reject CORS, so fetch failures remain report evidence and
+offline diagnosis continues. Never add a project proxy.
 
 ## Repository knowledge
 

@@ -24,13 +24,14 @@ pub mod input;
 pub mod protocol;
 pub mod report;
 pub mod signature;
+pub mod transaction;
 
 #[cfg(feature = "rpc")]
 pub mod rpc;
 
 pub use chain::{
-    ChainClient, DomainProbe, OnchainSnapshot, ProbeFailure, acquire_onchain_snapshot,
-    acquire_protocol_snapshot,
+    ChainClient, ChainTransaction, DomainProbe, OnchainSnapshot, ProbeFailure,
+    acquire_onchain_snapshot, acquire_onchain_snapshot_at, acquire_protocol_snapshot,
 };
 pub use diagnose::diagnose_offline;
 pub use eip712::{
@@ -46,13 +47,18 @@ pub use erc6492::{ERC6492_VALIDATION_GAS, MAX_ERC6492_SIGNATURE_BYTES, probe_erc
 pub use error::{Error, Result};
 pub use input::DiagnoseRequest;
 pub use protocol::{
-    DetectedStandard, DiagnosticContext, ERC6492_DETECTION_SUFFIX, Eip2612Snapshot, Erc6492Probe,
-    InputSource, Permit2AllowanceItemSnapshot, Permit2AllowanceRequest, Permit2AllowanceSnapshot,
+    DetectedStandard, DiagnosticContext, DiagnosticInput, ERC6492_DETECTION_SUFFIX,
+    Eip2612Snapshot, Erc6492Probe, Erc6492Wrapper, Erc6492WrapperContext, InputSource,
+    Permit2AllowanceItemSnapshot, Permit2AllowanceRequest, Permit2AllowanceSnapshot,
     Permit2SignatureTransferSnapshot, ProtocolRequest, ProtocolSnapshot, SimulationResult,
-    detect_standard, is_erc6492_signature, normalize_typed_data, protocol_request,
+    decode_erc6492_signature, detect_standard, is_erc6492_signature, normalize_diagnostic_input,
+    normalize_typed_data, protocol_request,
 };
 pub use report::{
     Confidence, Finding, FindingCode, REPORT_SCHEMA_VERSION, Report, Severity, Verdict,
     render_markdown,
 };
 pub use signature::{ParsedSignature, RecoveryEncoding, SignatureFormat};
+pub use transaction::{
+    ExecutionCall, TransactionContext, TransactionDiagnostic, reconstruct_transaction,
+};
