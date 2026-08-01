@@ -12,6 +12,6 @@
     "verify:sdk-package": "node scripts/verify-sdk-package.mjs"
   },
   "devDependencies": {
-    "typescript": "6.0.3"
+    "typescript": "7.0.2"
   }
 }
