@@ -1,4 +1,4 @@
-<p align="center"><img src="assets/logo.svg" width="72" height="72" alt="logo why712"></p>
+<p align="center"><img src="assets/logo.svg" width="320" height="116" alt="terminalowy wordmark why712"></p>
 
 <h1 align="center">why712</h1>
 

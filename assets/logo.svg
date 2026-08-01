@@ -1,7 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title description">
-  <title id="title">why712 logo</title>
-  <desc id="description">A black w and question mark on an acid green square.</desc>
-  <rect width="96" height="96" rx="8" fill="#c8ff3d"/>
-  <path d="M17 31h12l6 29 8-22h10l8 22 6-29h12L69 68H57l-9-22-9 22H27L17 31Z" fill="#0b0d0c"/>
-  <path d="M57 18c0-7 5-12 13-12 9 0 14 5 14 12 0 5-3 8-7 11-3 2-4 4-4 7v2H63v-3c0-6 3-9 7-12 2-2 4-3 4-6 0-2-2-4-5-4s-5 2-5 5H57Zm6 24h11v11H63V42Z" fill="#0b0d0c"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="116" viewBox="0 0 320 116" role="img" aria-labelledby="title description">
+  <title id="title">why712 terminal wordmark</title>
+  <desc id="description">A dark terminal-inspired panel with a green prompt, the word why712, and the label EIP-712 signature diagnostics.</desc>
+  <rect width="320" height="116" rx="12" fill="#101418"/>
+  <rect x=".5" y=".5" width="319" height="115" rx="11.5" fill="none" stroke="#273039"/>
+  <path d="M20 30h280" stroke="#273039"/>
+  <circle cx="24" cy="16" r="4" fill="#c8ff3d"/>
+  <circle cx="38" cy="16" r="4" fill="#59636d"/>
+  <circle cx="52" cy="16" r="4" fill="#59636d"/>
+  <text x="22" y="76" fill="#c8ff3d" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="34" font-weight="700" letter-spacing="-2">&gt; why712</text>
+  <text x="24" y="98" fill="#aeb9c2" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="10" font-weight="700" letter-spacing="1.1">EIP-712  /  SIGNATURE DIAGNOSTICS</text>
 </svg>

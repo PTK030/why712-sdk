@@ -1,4 +1,4 @@
-<p align="center"><img src="assets/logo.svg" width="72" height="72" alt="why712 标志"></p>
+<p align="center"><img src="assets/logo.svg" width="320" height="116" alt="why712 终端文字标识"></p>
 
 <h1 align="center">why712</h1>
 
